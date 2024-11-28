@@ -13,7 +13,8 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "prepublishOnly": "pnpm build"
   },
   "peerDependencies": {
     "react": ">=18",
@@ -41,6 +42,9 @@
     "defi",
     "ethereum"
   ],
-  "author": "Ponder Finance",
-  "license": "MIT"
+  "author": "@taayyohh",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
 }
