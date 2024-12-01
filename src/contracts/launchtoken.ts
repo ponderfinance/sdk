@@ -116,14 +116,6 @@ export class LaunchToken {
         })
     }
 
-    async transfersEnabled(): Promise<boolean> {
-        return this.publicClient.readContract({
-            address: this.address,
-            abi: launchtokenAbi,
-            functionName: 'transfersEnabled'
-        })
-    }
-
     async vestingStart(): Promise<bigint> {
         return this.publicClient.readContract({
             address: this.address,

@@ -1,27 +1,26 @@
 {
   "name": "@ponderfinance/sdk",
-  "version": "0.1.1",
+  "version": "0.1.5",
   "description": "SDK for interacting with Ponder DEX",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "clean": "rimraf dist",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "pnpm typecheck && pnpm build"
   },
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@ponderfinance/dex": "0.1.3",
+    "@ponderfinance/dex": "^0.1.5",
     "viem": "^2.21.51",
     "wagmi": "^2.13.2",
     "zod": "^3.23.8"
@@ -36,12 +35,7 @@
     "tsup": "^8.3.5",
     "typescript": "^5.7.2"
   },
-  "keywords": [
-    "ponder",
-    "dex",
-    "defi",
-    "ethereum"
-  ],
+  "keywords": ["ponder", "dex", "defi", "ethereum"],
   "author": "@taayyohh",
   "license": "MIT",
   "publishConfig": {
