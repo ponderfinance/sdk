@@ -1,6 +1,6 @@
 {
   "name": "@ponderfinance/sdk",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "SDK for interacting with Ponder DEX",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -21,7 +21,7 @@
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@ponderfinance/dex": "0.1.0",
+    "@ponderfinance/dex": "0.1.1",
     "viem": "^2.21.51",
     "wagmi": "^2.13.2",
     "zod": "^3.23.8"
