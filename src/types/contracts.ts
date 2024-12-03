@@ -11,6 +11,7 @@ import {
 export type ContractFunctions<TAbi extends Abi> = {
     read: {
         [TFunctionName in Extract<TAbi[number], { type: 'function', stateMutability: 'view' | 'pure' }>['name']]: (...args: any[]) => Promise<any>
+
     }
     write: {
         [TFunctionName in Extract<TAbi[number], { type: 'function', stateMutability: 'nonpayable' | 'payable' }>['name']]: (...args: any[]) => Promise<any>

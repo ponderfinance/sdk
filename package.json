@@ -5,7 +5,9 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -20,7 +22,9 @@
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@ponderfinance/dex": "^0.1.5",
+    "@ponderfinance/dex": "^0.1.6",
+    "@tanstack/react-query": "^5.62.2",
+    "react-query": "^3.39.3",
     "viem": "^2.21.51",
     "wagmi": "^2.13.2",
     "zod": "^3.23.8"
@@ -35,7 +39,12 @@
     "tsup": "^8.3.5",
     "typescript": "^5.7.2"
   },
-  "keywords": ["ponder", "dex", "defi", "ethereum"],
+  "keywords": [
+    "ponder",
+    "dex",
+    "defi",
+    "ethereum"
+  ],
   "author": "@taayyohh",
   "license": "MIT",
   "publishConfig": {
