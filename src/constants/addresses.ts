@@ -1,28 +1,32 @@
-import { type Address } from 'viem'
-import { type ChainId } from '@/types/common'
+import { type Address } from "viem";
+import { type ChainId } from "@/types/common";
 
 export interface PonderAddresses {
-    factory: Address
-    router: Address
-    masterChef: Address
-    launcher: Address
-    oracle: Address
-    kkubUnwrapper: Address
+  factory: Address;
+  router: Address;
+  masterChef: Address;
+  launcher: Address;
+  oracle: Address;
+  kkubUnwrapper: Address;
+  ponderToken: Address;
 }
 
 // Contract addresses for each supported chain
 export const PONDER_ADDRESSES: Record<ChainId, PonderAddresses> = {
-    25925: {
-        factory: '0xb1a88D99293416D725c9e71aaB64E89db84d3F5B',
-        router: '0xA4606e97d62F2907df9b980bf79AF7ed735ba72B',
-        masterChef: '0x0047a3e93319c3226C85c764FA98cdB8EeA5Dbbc',
-        launcher: '0x6eBbF400Eb0FA62D2De96771Ac7b7788C7486704',
-        oracle: '0x04C3913C234F2b3AbC2d1ebcAd818D044D5de7b6',
-        kkubUnwrapper: '0x467B467c33956425b735Abb5Da2C9dECF0047C71'
-    },
-} as const
+  25925: {
+    factory: "0x8a2c81794dcC22c1C612a497B5D89Fe9C3cDB017",
+    router: "0x1cf2e04374bC7b58CDCBCaa53Af1d58926479B40",
+    masterChef: "0x1abe610C3cCc7Ad9ec0EbC0800FBB72d64bE3AFB",
+    launcher: "0x680A84eaC8eBAE8dA2024D826a6bBe5Ccb7eDc4E",
+    oracle: "0xb0B5ce7360541650833fb9E55bcB70BFC07A3D10",
+    kkubUnwrapper: "0x04E1194d2298cA823c16D3A702af290c9c4dc3e2",
+    ponderToken: "0x3b9656251F82a40118E08210823Fff1A97F60C2D",
+  },
+} as const;
 
-// WETH addresses for each chain
-export const WETH_ADDRESSES: Record<ChainId, Address> = {
-    25925: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-} as const
+// KKUB addresses for each chain
+export const KKUB_ADDRESSES: Record<ChainId, Address> = {
+  25925: "0x1de8A5c87d421f53eE4ae398cc766e62E88e9518",
+} as const;
+
+// mainnet - 0x67eBD850304c70d983B2d1b93ea79c7CD6c3F6b5
