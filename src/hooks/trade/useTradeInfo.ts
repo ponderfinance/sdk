@@ -1,15 +1,15 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { type Address } from "viem";
 import { type PonderPair } from "@/contracts/pair";
-import { usePairFees } from "./usePairFees";
+import { usePairFees } from "@/hooks";
 
 interface TradeInfo {
-  priceImpact: number; // In percentage (e.g., 0.5 = 0.5%)
-  minimumReceived: bigint; // Accounting for slippage
+  priceImpact: number;
+  minimumReceived: bigint;
   fee: {
-    lp: bigint; // LP fee amount
-    creator: bigint; // Creator fee amount if applicable
-    total: bigint; // Total fee
+    lp: bigint;
+    creator: bigint;
+    total: bigint;
   };
 }
 
@@ -17,7 +17,7 @@ export function useTradeInfo(
   pair: PonderPair,
   tokenIn: Address,
   amountIn: bigint,
-  slippageTolerance = 0.5, // Default 0.5%
+  slippageTolerance = 0.5,
   enabled = true
 ): UseQueryResult<TradeInfo> {
   const { data: feeInfo, isLoading: isLoadingFees } = usePairFees(

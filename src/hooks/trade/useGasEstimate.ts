@@ -24,7 +24,15 @@ export function useGasEstimate(
   const sdk = usePonderSDK();
 
   return useQuery({
-    queryKey: ["ponder", "gas", "estimate", params],
+    queryKey: [
+      "ponder",
+      "gas",
+      "estimate",
+      {
+        ...params,
+        value: params?.value?.toString(),
+      },
+    ],
     queryFn: async () => {
       if (!params || !sdk.walletClient?.account) {
         throw new Error("Transaction params and connected wallet required");

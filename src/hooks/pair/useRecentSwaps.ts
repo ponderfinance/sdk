@@ -1,7 +1,7 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { type Address, type Hash } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
-import { usePairInfo } from "./usePairInfo";
+import { usePairInfo } from "@/hooks";
 
 export interface Swap {
   hash: Hash;
@@ -40,7 +40,15 @@ export function useRecentSwaps(
   );
 
   return useQuery({
-    queryKey: ["ponder", "swaps", "recent", params],
+    queryKey: [
+      "ponder",
+      "swaps",
+      "recent",
+      {
+        ...params,
+        fromBlock: params?.fromBlock?.toString(),
+      },
+    ],
     queryFn: async () => {
       const limit = params?.limit || 100;
       const fromBlock = params?.fromBlock || -3000n; // ~1 day of blocks by default

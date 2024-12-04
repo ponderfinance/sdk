@@ -37,7 +37,17 @@ export function usePairQuote(
   const { data: pairInfo } = usePairInfo(pairAddress, enabled && !!pairAddress);
 
   return useQuery({
-    queryKey: ["ponder", "pair", "quote", params, slippageBps],
+    queryKey: [
+      "ponder",
+      "pair",
+      "quote",
+      {
+        ...params,
+        amountADesired: params?.amountADesired?.toString(),
+        amountBDesired: params?.amountBDesired?.toString(),
+      },
+      slippageBps,
+    ],
     queryFn: async () => {
       if (!params || !pairInfo) {
         throw new Error("Params and pair info required");

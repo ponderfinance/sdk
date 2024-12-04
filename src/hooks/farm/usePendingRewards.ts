@@ -17,7 +17,7 @@ export function usePendingRewards(
   const sdk = usePonderSDK();
 
   return useQuery({
-    queryKey: ["ponder", "farm", "pendingRewards", poolId, account],
+    queryKey: ["ponder", "farm", "pendingRewards", poolId.toString(), account],
     queryFn: async () => {
       if (!account) throw new Error("No account provided");
 

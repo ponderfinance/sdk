@@ -22,7 +22,7 @@ export function useStakeInfo(
   const sdk = usePonderSDK();
 
   return useQuery({
-    queryKey: ["ponder", "farm", "stake", poolId, account],
+    queryKey: ["ponder", "farm", "stake", poolId.toString(), account],
     queryFn: async () => {
       if (!account) throw new Error("No account provided");
 

@@ -1,7 +1,6 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { type Address } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
-import { usePairInfo } from "./usePairInfo";
 
 export interface SwapRoute {
   path: Address[];
@@ -37,7 +36,15 @@ export function useSwapRoute(
   const sdk = usePonderSDK();
 
   return useQuery({
-    queryKey: ["ponder", "route", params],
+    queryKey: [
+      "ponder",
+      "route",
+      {
+        ...params,
+        amountIn: params?.amountIn?.toString(),
+        amountOut: params?.amountOut?.toString(),
+      },
+    ],
     queryFn: async () => {
       if (!params) throw new Error("Params required");
       const { tokenIn, tokenOut, amountIn, amountOut, maxHops = 3 } = params;

@@ -1,17 +1,22 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { type PonderSDK } from "@/index";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const PonderContext = createContext<PonderSDK | undefined>(undefined);
 
 export function PonderProvider({
   sdk,
   children,
+  queryClient,
 }: {
   sdk: PonderSDK;
   children: ReactNode;
+  queryClient: QueryClient;
 }) {
   return (
-    <PonderContext.Provider value={sdk}>{children}</PonderContext.Provider>
+    <QueryClientProvider client={queryClient}>
+      <PonderContext.Provider value={sdk}>{children}</PonderContext.Provider>
+    </QueryClientProvider>
   );
 }
 
