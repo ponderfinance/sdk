@@ -4,8 +4,15 @@ import {
   type UseMutationResult,
   type UseQueryResult,
 } from "@tanstack/react-query";
-import { type Address, type Hash } from "viem";
+import {
+  type Address,
+  type Hash,
+  decodeEventLog,
+  type WriteContractParameters,
+} from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
+import { bitkubTestnetChain } from "@/constants/chains";
+import { FACTORY_ABI } from "@/abis";
 
 interface PairCreationParams {
   token0: Address;
@@ -31,6 +38,17 @@ export interface PairCreationData {
   sortedTokens: Address[];
   estimatedGas?: bigint;
 }
+
+// Define the PairCreated event type
+type PairCreatedEvent = {
+  eventName: "PairCreated";
+  args: {
+    token0: Address;
+    token1: Address;
+    pair: Address;
+    allPairsLength: bigint;
+  };
+};
 
 export function usePairCreation(tokens?: [Address, Address]): {
   data: UseQueryResult<PairCreationData>;
@@ -74,23 +92,15 @@ export function usePairCreation(tokens?: [Address, Address]): {
       // Estimate gas for creation
       let estimatedGas: bigint | undefined;
       try {
-        estimatedGas = await sdk.publicClient.estimateContractGas({
+        const { request } = await sdk.publicClient.simulateContract({
           address: sdk.factory.address,
-          abi: [
-            {
-              name: "createPair",
-              type: "function",
-              inputs: [
-                { name: "tokenA", type: "address" },
-                { name: "tokenB", type: "address" },
-              ],
-              outputs: [{ name: "pair", type: "address" }],
-            },
-          ],
+          abi: FACTORY_ABI,
           functionName: "createPair",
           args: [token0, token1],
           account: sdk.walletClient?.account?.address,
+          chain: bitkubTestnetChain,
         });
+        estimatedGas = request.gas;
       } catch {
         // Gas estimation failed
       }
@@ -111,11 +121,25 @@ export function usePairCreation(tokens?: [Address, Address]): {
         throw new Error("Wallet not connected");
       }
 
-      const result = await sdk.factory.createPair({ tokenA: token0, tokenB: token1 });
+      // Simulate the pair creation
+      const { request } = await sdk.publicClient.simulateContract({
+        address: sdk.factory.address,
+        abi: FACTORY_ABI,
+        functionName: "createPair",
+        args: [token0, token1],
+        account: sdk.walletClient.account.address,
+        chain: bitkubTestnetChain,
+      });
+
+      // Execute the pair creation
+      const hash = await sdk.walletClient.writeContract(
+        request as WriteContractParameters
+      );
 
       // Wait for confirmation and parse events
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
-        hash: result.hash,
+        hash,
+        confirmations: 1,
       });
 
       // Find PairCreated event
@@ -127,15 +151,26 @@ export function usePairCreation(tokens?: [Address, Address]): {
 
       let pairCreated;
       if (pairCreatedLog) {
-        pairCreated = {
-          token0: `0x${pairCreatedLog?.topics[1]?.slice(26)}` as Address,
-          token1: `0x${pairCreatedLog?.topics[2]?.slice(26)}` as Address,
-          pair: `0x${pairCreatedLog?.topics[3]?.slice(26)}` as Address,
-        };
+        try {
+          const decoded = decodeEventLog({
+            abi: FACTORY_ABI,
+            data: pairCreatedLog.data,
+            topics: pairCreatedLog.topics,
+            eventName: "PairCreated",
+          }) as unknown as PairCreatedEvent;
+
+          pairCreated = {
+            token0: decoded.args.token0,
+            token1: decoded.args.token1,
+            pair: decoded.args.pair,
+          };
+        } catch (error) {
+          console.error("Failed to decode PairCreated event:", error);
+        }
       }
 
       return {
-        hash: result.hash,
+        hash,
         pair:
           pairCreated?.pair ||
           ("0x0000000000000000000000000000000000000000" as Address),
@@ -143,6 +178,10 @@ export function usePairCreation(tokens?: [Address, Address]): {
           pairCreated,
         },
       };
+    },
+    onError: (error) => {
+      console.error("Pair creation error:", error);
+      throw error;
     },
   });
 

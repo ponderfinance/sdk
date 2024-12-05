@@ -1,7 +1,13 @@
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
-import { type Address, type Hash, decodeEventLog } from "viem";
+import {
+  type Address,
+  type Hash,
+  decodeEventLog,
+  type WriteContractParameters,
+} from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { PAIR_ABI, ROUTER_ABI } from "@/abis";
+import { bitkubTestnetChain } from "@/constants/chains";
 
 interface SwapExactTokensForTokensParams {
   amountIn: bigint;
@@ -43,6 +49,10 @@ export function useSwap(): UseMutationResult<
 
   return useMutation({
     mutationFn: async (params: SwapExactTokensForTokensParams) => {
+      if (!sdk.walletClient?.account) {
+        throw new Error("Wallet not connected");
+      }
+
       if (params.path.length < 2) {
         throw new Error("Invalid swap path");
       }
@@ -59,14 +69,26 @@ export function useSwap(): UseMutationResult<
         throw new Error("Pair does not exist");
       }
 
-      // Execute swap
-      const hash = await sdk.router.swapExactTokensForTokens({
-        amountIn: params.amountIn,
-        amountOutMin: params.amountOutMin,
-        path: params.path,
-        to: params.to,
-        deadline: params.deadline,
+      // Simulate the swap transaction
+      const { request } = await sdk.publicClient.simulateContract({
+        address: sdk.router.address,
+        abi: ROUTER_ABI,
+        functionName: "swapExactTokensForTokens",
+        args: [
+          params.amountIn,
+          params.amountOutMin,
+          params.path,
+          params.to,
+          params.deadline,
+        ],
+        account: sdk.walletClient.account.address,
+        chain: bitkubTestnetChain,
       });
+
+      // Execute the swap
+      const hash = await sdk.walletClient.writeContract(
+        request as WriteContractParameters
+      );
 
       // Wait for transaction receipt
       const receipt = await sdk.publicClient.waitForTransactionReceipt({

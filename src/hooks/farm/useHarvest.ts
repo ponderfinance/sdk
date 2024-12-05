@@ -1,7 +1,14 @@
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
-import { type Address, type Hash, decodeEventLog, erc20Abi } from "viem";
+import {
+  type Address,
+  type Hash,
+  type WriteContractParameters,
+  decodeEventLog,
+  erc20Abi,
+} from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { MASTERCHEF_ABI } from "@/abis";
+import { bitkubTestnetChain } from "@/constants/chains";
 
 interface HarvestParams {
   poolId: number;
@@ -75,12 +82,21 @@ export function useHarvest(): UseMutationResult<
         throw new Error("Wallet not connected");
       }
 
-      // Harvest by depositing 0
-      const hash = await sdk.masterChef.deposit(BigInt(params.poolId), 0n);
+      const { request } = await sdk.publicClient.simulateContract({
+        address: sdk.masterChef.address,
+        abi: MASTERCHEF_ABI,
+        functionName: "deposit",
+        args: [BigInt(params.poolId), 0n],
+        account: sdk.walletClient.account.address,
+        chain: bitkubTestnetChain,
+      });
+
+      const hash = await sdk.walletClient.writeContract(
+        request as WriteContractParameters
+      );
 
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
         hash,
-        confirmations: 1,
       });
 
       let rewards = 0n;

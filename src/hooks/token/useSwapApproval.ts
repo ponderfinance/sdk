@@ -1,7 +1,8 @@
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
-import { type Address, type Hash } from "viem";
+import { type Address, type Hash, type WriteContractParameters } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { bitkubTestnetChain } from "@/constants/chains";
+import { erc20Abi } from "viem";
 
 interface SwapApprovalParams {
   tokenIn: Address;
@@ -44,18 +45,7 @@ export function useSwapApproval(): UseMutationResult<
       // Check current allowance
       const currentAllowance = (await sdk.publicClient.readContract({
         address: tokenIn,
-        abi: [
-          {
-            name: "allowance",
-            type: "function",
-            stateMutability: "view",
-            inputs: [
-              { name: "owner", type: "address" },
-              { name: "spender", type: "address" },
-            ],
-            outputs: [{ name: "", type: "uint256" }],
-          },
-        ],
+        abi: erc20Abi,
         functionName: "allowance",
         args: [sdk.walletClient.account.address, spender],
       })) as bigint;
@@ -77,47 +67,36 @@ export function useSwapApproval(): UseMutationResult<
         currentAllowance > 0n &&
         (useUnlimited || currentAllowance < amountIn)
       ) {
-        const resetHash = await sdk.walletClient.writeContract({
+        const { request } = await sdk.publicClient.simulateContract({
           address: tokenIn,
-          chain: bitkubTestnetChain,
-          account: sdk.walletClient.account,
-          abi: [
-            {
-              name: "approve",
-              type: "function",
-              inputs: [
-                { name: "spender", type: "address" },
-                { name: "amount", type: "uint256" },
-              ],
-              outputs: [{ name: "", type: "bool" }],
-            },
-          ],
+          abi: erc20Abi,
           functionName: "approve",
           args: [spender, 0n],
+          account: sdk.walletClient.account.address,
+          chain: bitkubTestnetChain,
         });
+
+        const resetHash = await sdk.walletClient.writeContract(
+          request as WriteContractParameters
+        );
         await sdk.publicClient.waitForTransactionReceipt({ hash: resetHash });
       }
 
       // Approve new amount
       const approvalAmount = useUnlimited ? MAX_UINT256 : amountIn;
-      const hash = await sdk.walletClient.writeContract({
+
+      const { request } = await sdk.publicClient.simulateContract({
         address: tokenIn,
-        chain: bitkubTestnetChain,
-        account: sdk.walletClient.account,
-        abi: [
-          {
-            name: "approve",
-            type: "function",
-            inputs: [
-              { name: "spender", type: "address" },
-              { name: "amount", type: "uint256" },
-            ],
-            outputs: [{ name: "", type: "bool" }],
-          },
-        ],
+        abi: erc20Abi,
         functionName: "approve",
         args: [spender, approvalAmount],
+        account: sdk.walletClient.account.address,
+        chain: bitkubTestnetChain,
       });
+
+      const hash = await sdk.walletClient.writeContract(
+        request as WriteContractParameters
+      );
 
       // Wait for confirmation
       await sdk.publicClient.waitForTransactionReceipt({ hash });

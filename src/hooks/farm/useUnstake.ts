@@ -1,7 +1,13 @@
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
-import { type Address, type Hash, decodeEventLog } from "viem";
+import {
+  type Address,
+  type Hash,
+  type WriteContractParameters,
+  decodeEventLog,
+} from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { MASTERCHEF_ABI } from "@/abis";
+import { bitkubTestnetChain } from "@/constants/chains";
 
 interface UnstakeParams {
   poolId: number;
@@ -29,17 +35,28 @@ export function useUnstake(): UseMutationResult<
 
   return useMutation({
     mutationFn: async (params: UnstakeParams) => {
-      const hash = await sdk.masterChef.withdraw(
-        BigInt(params.poolId),
-        params.amount
+      if (!sdk.walletClient?.account) {
+        throw new Error("Wallet not connected");
+      }
+
+      const { request } = await sdk.publicClient.simulateContract({
+        address: sdk.masterChef.address,
+        abi: MASTERCHEF_ABI,
+        functionName: "withdraw",
+        args: [BigInt(params.poolId), params.amount],
+        account: sdk.walletClient.account.address,
+        chain: bitkubTestnetChain,
+      });
+
+      const hash = await sdk.walletClient.writeContract(
+        request as WriteContractParameters
       );
 
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
         hash,
-        confirmations: 1,
       });
 
-      // Decode Withdraw event
+      let withdrawEvent;
       const withdrawLog = receipt.logs.find(
         (log) =>
           log.address.toLowerCase() === sdk.masterChef.address.toLowerCase() &&
@@ -47,7 +64,6 @@ export function useUnstake(): UseMutationResult<
             "0xf279e6a1f5e320cca91135676d9cb6e44ca8a08c0b88342bcdb1144f6511b568"
       );
 
-      let withdrawEvent;
       if (withdrawLog) {
         const decoded = decodeEventLog({
           abi: MASTERCHEF_ABI,

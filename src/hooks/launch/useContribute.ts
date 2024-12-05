@@ -1,7 +1,13 @@
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
-import { type Address, type Hash, decodeEventLog } from "viem";
+import {
+  type Address,
+  type Hash,
+  type WriteContractParameters,
+  decodeEventLog,
+} from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { LAUNCHER_ABI } from "@/abis";
+import { bitkubTestnetChain } from "@/constants/chains";
 
 interface ContributeParams {
   launchId: bigint;
@@ -42,11 +48,22 @@ export function useContribute(): UseMutationResult<
         throw new Error("Wallet not connected");
       }
 
-      const hash = await sdk.launcher.contribute(launchId, amount);
+      const { request } = await sdk.publicClient.simulateContract({
+        address: sdk.launcher.address,
+        abi: LAUNCHER_ABI,
+        functionName: "contribute",
+        args: [launchId],
+        value: amount,
+        account: sdk.walletClient.account.address,
+        chain: bitkubTestnetChain,
+      });
+
+      const hash = await sdk.walletClient.writeContract(
+        request as WriteContractParameters
+      );
 
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
         hash,
-        confirmations: 1,
       });
 
       const events: ContributeResult["events"] = {};

@@ -4,9 +4,15 @@ import {
   type UseMutationResult,
   type UseQueryResult,
 } from "@tanstack/react-query";
-import { type Address, type Hash, decodeEventLog } from "viem";
+import {
+  type Address,
+  type Hash,
+  type WriteContractParameters,
+  decodeEventLog,
+} from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { LAUNCHER_ABI } from "@/abis";
+import { bitkubTestnetChain } from "@/constants/chains";
 
 interface LPWithdrawParams {
   launchId: bigint;
@@ -90,45 +96,51 @@ export function useLPWithdraw(): UseMutationResult<
         throw new Error("Wallet not connected");
       }
 
-      const hash = await sdk.launcher.withdrawLP(launchId);
+      const { request } = await sdk.publicClient.simulateContract({
+        address: sdk.launcher.address,
+        abi: LAUNCHER_ABI,
+        functionName: "withdrawLP",
+        args: [launchId],
+        account: sdk.walletClient.account.address,
+        chain: bitkubTestnetChain,
+      });
+
+      const hash = await sdk.walletClient.writeContract(
+        request as WriteContractParameters
+      );
 
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
         hash,
-        confirmations: 1,
       });
 
-      const events: LPWithdrawResult["events"] = {};
+      let lpWithdrawnEvent;
+      const lpWithdrawnLog = receipt.logs.find(
+        (log) =>
+          log.topics[0] ===
+          "0x8d7c3c56f4e7f949b483f37118c9b7d56c947690b5ff3db6757b7c634c23a4b9"
+      );
 
-      for (const log of receipt.logs) {
-        try {
-          if (
-            log.topics[0] ===
-            "0x8d7c3c56f4e7f949b483f37118c9b7d56c947690b5ff3db6757b7c634c23a4b9"
-          ) {
-            // LPTokensWithdrawn event
-            const decoded = decodeEventLog({
-              abi: LAUNCHER_ABI,
-              data: log.data,
-              topics: log.topics,
-              eventName: "LPTokensWithdrawn",
-            } as const);
+      if (lpWithdrawnLog) {
+        const decoded = decodeEventLog({
+          abi: LAUNCHER_ABI,
+          data: lpWithdrawnLog.data,
+          topics: lpWithdrawnLog.topics,
+          eventName: "LPTokensWithdrawn",
+        });
 
-            events.lpWithdrawn = {
-              launchId: decoded.args.launchId,
-              creator: decoded.args.creator,
-              amount: decoded.args.amount,
-            };
-          }
-        } catch (error) {
-          console.warn("Failed to decode log:", error);
-          continue;
-        }
+        lpWithdrawnEvent = {
+          launchId: decoded.args.launchId,
+          creator: decoded.args.creator,
+          amount: decoded.args.amount,
+        };
       }
 
       return {
         hash,
-        amount: events.lpWithdrawn?.amount || 0n,
-        events,
+        amount: lpWithdrawnEvent?.amount || 0n,
+        events: {
+          lpWithdrawn: lpWithdrawnEvent,
+        },
       };
     },
     onError: (error) => {

@@ -249,7 +249,7 @@ export type {
 export type { Observation } from "./contracts/oracle";
 
 // Context provider
-export { PonderProvider } from "./context/PonderContext";
+export { usePonderSDK, PonderProvider } from "./context/PonderContext";
 
 // Hook exports
 export { type FeeInfo } from "./utils/fees";

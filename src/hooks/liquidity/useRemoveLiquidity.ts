@@ -1,6 +1,13 @@
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
-import { type Address, type Hash } from "viem";
+import {
+  type Address,
+  type Hash,
+  decodeEventLog,
+  type WriteContractParameters,
+} from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
+import { bitkubTestnetChain } from "@/constants/chains";
+import { ROUTER_ABI, PAIR_ABI } from "@/abis";
 
 interface RemoveLiquidityParams {
   pairAddress: Address;
@@ -18,6 +25,17 @@ interface RemoveLiquidityResult {
     token1: bigint;
   };
 }
+
+// Define event types
+type BurnEvent = {
+  eventName: "Burn";
+  args: {
+    sender: Address;
+    amount0: bigint;
+    amount1: bigint;
+    to: Address;
+  };
+};
 
 export function useRemoveLiquidity(): UseMutationResult<
   RemoveLiquidityResult,
@@ -39,48 +57,78 @@ export function useRemoveLiquidity(): UseMutationResult<
         throw new Error("Wallet not connected");
       }
 
+      // Get the tokens for this pair
       const pair = sdk.getPair(pairAddress);
       const [token0, token1] = await Promise.all([
         pair.token0(),
         pair.token1(),
       ]);
 
-      // Check if we're removing liquidity from a KKUB pair
-      const isKKUBPair =
+      // Check if we're removing liquidity from a WETH pair
+      const isWETHPair =
         token0 === (await sdk.router.WETH()) ||
         token1 === (await sdk.router.WETH());
 
       let hash: Hash;
-      if (isKKUBPair) {
+      const recipient = toAddress || sdk.walletClient.account.address;
+
+      if (isWETHPair) {
+        // Handle ETH/WETH pair
         const token = token0 === (await sdk.router.WETH()) ? token1 : token0;
         const amountTokenMin =
           token0 === (await sdk.router.WETH()) ? token1Min : token0Min;
         const amountETHMin =
           token0 === (await sdk.router.WETH()) ? token0Min : token1Min;
 
-        hash = await sdk.router.removeLiquidityETH({
-          token,
-          liquidity,
-          amountTokenMin,
-          amountETHMin,
-          to: toAddress || sdk.walletClient.account.address,
-          deadline,
+        // Simulate removeLiquidityETH
+        const { request } = await sdk.publicClient.simulateContract({
+          address: sdk.router.address,
+          abi: ROUTER_ABI,
+          functionName: "removeLiquidityETH",
+          args: [
+            token,
+            liquidity,
+            amountTokenMin,
+            amountETHMin,
+            recipient,
+            deadline,
+          ],
+          account: sdk.walletClient.account.address,
+          chain: bitkubTestnetChain,
         });
+
+        hash = await sdk.walletClient.writeContract(
+          request as WriteContractParameters
+        );
       } else {
-        hash = await sdk.router.removeLiquidity({
-          tokenA: token0,
-          tokenB: token1,
-          liquidity,
-          amountAMin: token0Min,
-          amountBMin: token1Min,
-          to: toAddress || sdk.walletClient.account.address,
-          deadline,
+        // Handle regular token pair
+        // Simulate removeLiquidity
+        const { request } = await sdk.publicClient.simulateContract({
+          address: sdk.router.address,
+          abi: ROUTER_ABI,
+          functionName: "removeLiquidity",
+          args: [
+            token0,
+            token1,
+            liquidity,
+            token0Min,
+            token1Min,
+            recipient,
+            deadline,
+          ],
+          account: sdk.walletClient.account.address,
+          chain: bitkubTestnetChain,
         });
+
+        hash = await sdk.walletClient.writeContract(
+          request as WriteContractParameters
+        );
       }
 
       // Wait for transaction and get removed amounts
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
         hash,
+        confirmations: 1,
       });
 
       // Find Burn event from the pair contract
@@ -88,16 +136,26 @@ export function useRemoveLiquidity(): UseMutationResult<
         (log) =>
           log.address.toLowerCase() === pairAddress.toLowerCase() &&
           log.topics[0] ===
-            "0xdccd412f0b1252819cb1fd330b93224ca42612892bb3f4f789976e6d81936496" // Burn event signature
+            "0xdccd412f0b1252819cb1fd330b93224ca42612892bb3f4f789976e6d81936496"
       );
 
-      let token0Amount = BigInt(0),
-        token1Amount = BigInt(0);
+      let token0Amount = 0n;
+      let token1Amount = 0n;
+
       if (burnLog) {
-        // Parse the burn event data
-        const burnData = burnLog.data.slice(2); // Remove '0x' prefix
-        token0Amount = BigInt("0x" + burnData.slice(0, 64));
-        token1Amount = BigInt("0x" + burnData.slice(64, 128));
+        try {
+          const decoded = decodeEventLog({
+            abi: PAIR_ABI,
+            data: burnLog.data,
+            topics: burnLog.topics,
+            eventName: "Burn",
+          }) as BurnEvent;
+
+          token0Amount = decoded.args.amount0;
+          token1Amount = decoded.args.amount1;
+        } catch (error) {
+          console.error("Failed to decode Burn event:", error);
+        }
       }
 
       return {
@@ -107,6 +165,10 @@ export function useRemoveLiquidity(): UseMutationResult<
           token1: token1Amount,
         },
       };
+    },
+    onError: (error) => {
+      console.error("Remove liquidity error:", error);
+      throw error;
     },
   });
 }

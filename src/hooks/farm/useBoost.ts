@@ -1,7 +1,13 @@
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
-import { type Address, type Hash, decodeEventLog } from "viem";
+import {
+  type Address,
+  decodeEventLog,
+  type Hash,
+  type WriteContractParameters,
+} from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { MASTERCHEF_ABI } from "@/abis";
+import { bitkubTestnetChain } from "@/constants/chains";
 
 interface BoostStakeParams {
   poolId: number;
@@ -36,16 +42,28 @@ export function useBoostStake(): UseMutationResult<
 
   return useMutation({
     mutationFn: async (params: BoostStakeParams) => {
-      const hash = await sdk.masterChef.boostStake(
-        BigInt(params.poolId),
-        params.amount
+      if (!sdk.walletClient?.account) {
+        throw new Error("Wallet not connected");
+      }
+
+      const { request } = await sdk.publicClient.simulateContract({
+        address: sdk.masterChef.address,
+        abi: MASTERCHEF_ABI,
+        functionName: "boostStake",
+        args: [BigInt(params.poolId), params.amount],
+        account: sdk.walletClient.account.address,
+        chain: bitkubTestnetChain,
+      });
+
+      const hash = await sdk.walletClient.writeContract(
+        request as WriteContractParameters
       );
 
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
         hash,
-        confirmations: 1,
       });
 
+      let boostStakeEvent;
       const boostStakeLog = receipt.logs.find(
         (log) =>
           log.address.toLowerCase() === sdk.masterChef.address.toLowerCase() &&
@@ -53,7 +71,6 @@ export function useBoostStake(): UseMutationResult<
             "0x4ed4c68f13abf9c0a138434c6d868b44a80834f36c55b9fb945c7672ff919ea0"
       );
 
-      let boostStakeEvent;
       if (boostStakeLog) {
         const decoded = decodeEventLog({
           abi: MASTERCHEF_ABI,
@@ -88,16 +105,28 @@ export function useBoostUnstake(): UseMutationResult<
 
   return useMutation({
     mutationFn: async (params: BoostUnstakeParams) => {
-      const hash = await sdk.masterChef.boostUnstake(
-        BigInt(params.poolId),
-        params.amount
+      if (!sdk.walletClient?.account) {
+        throw new Error("Wallet not connected");
+      }
+
+      const { request } = await sdk.publicClient.simulateContract({
+        address: sdk.masterChef.address,
+        abi: MASTERCHEF_ABI,
+        functionName: "boostUnstake",
+        args: [BigInt(params.poolId), params.amount],
+        account: sdk.walletClient.account.address,
+        chain: bitkubTestnetChain,
+      });
+
+      const hash = await sdk.walletClient.writeContract(
+        request as WriteContractParameters
       );
 
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
         hash,
-        confirmations: 1,
       });
 
+      let boostUnstakeEvent;
       const boostUnstakeLog = receipt.logs.find(
         (log) =>
           log.address.toLowerCase() === sdk.masterChef.address.toLowerCase() &&
@@ -105,7 +134,6 @@ export function useBoostUnstake(): UseMutationResult<
             "0x6f498a6d2e0937b2d3ab5c89c4d3981571a77e3359c503c5080c75b9c847a0e2"
       );
 
-      let boostUnstakeEvent;
       if (boostUnstakeLog) {
         const decoded = decodeEventLog({
           abi: MASTERCHEF_ABI,

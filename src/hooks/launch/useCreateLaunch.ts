@@ -1,6 +1,12 @@
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
-import { type Address, type Hash, decodeEventLog } from "viem";
+import {
+  type Address,
+  type Hash,
+  decodeEventLog,
+  type WriteContractParameters,
+} from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
+import { bitkubTestnetChain } from "@/constants/chains";
 import { LAUNCHER_ABI } from "@/abis";
 
 interface CreateLaunchParams {
@@ -32,6 +38,26 @@ interface CreateLaunchResult {
   };
 }
 
+// Define event types
+type LaunchCreatedEvent = {
+  eventName: "LaunchCreated";
+  args: {
+    launchId: bigint;
+    token: Address;
+    creator: Address;
+    imageURI: string;
+  };
+};
+
+type TokenMintedEvent = {
+  eventName: "TokenMinted";
+  args: {
+    launchId: bigint;
+    tokenAddress: Address;
+    amount: bigint;
+  };
+};
+
 export function useCreateLaunch(): UseMutationResult<
   CreateLaunchResult,
   Error,
@@ -50,19 +76,30 @@ export function useCreateLaunch(): UseMutationResult<
         throw new Error("Invalid launch parameters");
       }
 
-      const result = await sdk.launcher.createLaunch({
-        name: params.name,
-        symbol: params.symbol,
-        imageURI: params.imageURI,
+      // Simulate the launch creation with separate arguments
+      const { request } = await sdk.publicClient.simulateContract({
+        address: sdk.launcher.address,
+        abi: LAUNCHER_ABI,
+        functionName: "createLaunch",
+        args: [params.name, params.symbol, params.imageURI],
+        account: sdk.walletClient.account.address,
+        chain: bitkubTestnetChain,
       });
 
+      // Execute the launch creation
+      const hash = await sdk.walletClient.writeContract(
+        request as WriteContractParameters
+      );
+
+      // Wait for transaction receipt
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
-        hash: result.hash,
+        hash,
         confirmations: 1,
       });
 
       const events: CreateLaunchResult["events"] = {};
 
+      // Process all logs
       for (const log of receipt.logs) {
         try {
           if (
@@ -75,7 +112,7 @@ export function useCreateLaunch(): UseMutationResult<
               data: log.data,
               topics: log.topics,
               eventName: "LaunchCreated",
-            } as const);
+            }) as LaunchCreatedEvent;
 
             events.launchCreated = {
               launchId: decoded.args.launchId,
@@ -93,7 +130,7 @@ export function useCreateLaunch(): UseMutationResult<
               data: log.data,
               topics: log.topics,
               eventName: "TokenMinted",
-            } as const);
+            }) as TokenMintedEvent;
 
             events.tokenMinted = {
               launchId: decoded.args.launchId,
@@ -108,11 +145,11 @@ export function useCreateLaunch(): UseMutationResult<
       }
 
       if (!events.launchCreated) {
-        throw new Error("Launch creation failed");
+        throw new Error("Launch creation failed: no LaunchCreated event found");
       }
 
       return {
-        hash: result.hash,
+        hash,
         launchId: events.launchCreated.launchId,
         token: {
           address: events.launchCreated.token,
