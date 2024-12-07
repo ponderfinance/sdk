@@ -6,55 +6,73 @@ import { getChainFromId } from '@/constants/chains'
 import { PONDER_ADDRESSES } from '@/constants/addresses'
 
 export interface LaunchInfo {
-    tokenAddress: Address
-    name: string
-    symbol: string
-    imageURI: string
-    totalRaised: bigint
-    launched: boolean
-    lpUnlockTime: bigint
+    tokenAddress: Address;
+    name: string;
+    symbol: string;
+    imageURI: string;
+    totalRaised: bigint;
+    launched: boolean;
+    creator: Address;
+    lpUnlockTime: bigint;
+    tokenPrice: bigint;
+    tokensForSale: bigint;
+    tokensSold: bigint;
+    ponderRequired: bigint;
+    ponderCollected: bigint;
 }
 
 export interface SaleInfo {
-    tokenPrice: bigint
-    tokensForSale: bigint
-    tokensSold: bigint
-    totalRaised: bigint
-    launched: boolean
-    remainingTokens: bigint
+    tokenPrice: bigint;
+    tokensForSale: bigint;
+    tokensSold: bigint;
+    totalRaised: bigint;
+    launched: boolean;
+    remainingTokens: bigint;
 }
 
 export interface CreateLaunchParams {
-    name: string
-    symbol: string
-    imageURI: string
+    name: string;
+    symbol: string;
+    imageURI: string;
 }
 
-export type CreateLaunchResult = {
-    hash: Hash
-    wait: () => Promise<{
-        launchId: bigint
-        tokenAddress: Address
-    }>
+export interface PonderMetrics {
+    lpAllocation: bigint;      // 50% to launch token/PONDER LP
+    protocolLPAllocation: bigint; // 30% to PONDER/KUB LP
+    burnAmount: bigint;        // 20% burned
+    requiredAmount: bigint;    // Total PONDER needed
 }
 
 export class FiveFiveFiveLauncher {
-    public readonly chainId: SupportedChainId
-    public readonly address: Address
-    public readonly chain: Chain
-    private readonly publicClient: PublicClient
-    private readonly walletClient?: WalletClient
+    public readonly chainId: SupportedChainId;
+    public readonly address: Address;
+    public readonly chain: Chain;
+    private readonly publicClient: PublicClient;
+    private readonly walletClient?: WalletClient;
+
+    // Protocol constants from contract
+    public readonly TARGET_RAISE = 5555n * 10n ** 18n; // 5,555 KUB
+    public readonly TOTAL_SUPPLY = 555_555_555n * 10n ** 18n; // 555,555,555 tokens
+    public readonly LP_ALLOCATION = 10n; // 10% of launch tokens for LP
+    public readonly CREATOR_ALLOCATION = 10n; // 10% to creator
+    public readonly CONTRIBUTOR_ALLOCATION = 80n; // 80% for sale
+    public readonly LP_LOCK_PERIOD = 180n * 24n * 60n * 60n; // 180 days in seconds
+
+    // PONDER distribution ratios
+    public readonly PONDER_LP_ALLOCATION = 50n; // 50% to launch token/PONDER LP
+    public readonly PONDER_PROTOCOL_LP = 30n; // 30% to PONDER/KUB LP
+    public readonly PONDER_BURN = 20n; // 20% burned
 
     constructor(
         chainId: SupportedChainId,
         publicClient: PublicClient,
         walletClient?: WalletClient
     ) {
-        this.chainId = chainId
-        this.chain = getChainFromId(chainId)
-        this.address = PONDER_ADDRESSES[chainId].launcher
-        this.publicClient = publicClient
-        this.walletClient = walletClient
+        this.chainId = chainId;
+        this.chain = getChainFromId(chainId);
+        this.address = PONDER_ADDRESSES[chainId].launcher;
+        this.publicClient = publicClient;
+        this.walletClient = walletClient;
     }
 
     // Read Methods
@@ -63,7 +81,7 @@ export class FiveFiveFiveLauncher {
             address: this.address,
             abi: fivefivefivelauncherAbi,
             functionName: 'factory'
-        })
+        });
     }
 
     async router(): Promise<Address> {
@@ -71,7 +89,7 @@ export class FiveFiveFiveLauncher {
             address: this.address,
             abi: fivefivefivelauncherAbi,
             functionName: 'router'
-        })
+        });
     }
 
     async owner(): Promise<Address> {
@@ -79,7 +97,7 @@ export class FiveFiveFiveLauncher {
             address: this.address,
             abi: fivefivefivelauncherAbi,
             functionName: 'owner'
-        })
+        });
     }
 
     async feeCollector(): Promise<Address> {
@@ -87,7 +105,7 @@ export class FiveFiveFiveLauncher {
             address: this.address,
             abi: fivefivefivelauncherAbi,
             functionName: 'feeCollector'
-        })
+        });
     }
 
     async launchCount(): Promise<bigint> {
@@ -95,131 +113,110 @@ export class FiveFiveFiveLauncher {
             address: this.address,
             abi: fivefivefivelauncherAbi,
             functionName: 'launchCount'
-        })
-    }
-
-    async TARGET_RAISE(): Promise<bigint> {
-        return this.publicClient.readContract({
-            address: this.address,
-            abi: fivefivefivelauncherAbi,
-            functionName: 'TARGET_RAISE'
-        })
-    }
-
-    async TOTAL_SUPPLY(): Promise<bigint> {
-        return this.publicClient.readContract({
-            address: this.address,
-            abi: fivefivefivelauncherAbi,
-            functionName: 'TOTAL_SUPPLY'
-        })
+        });
     }
 
     async getLaunchInfo(launchId: bigint): Promise<LaunchInfo> {
-        const [
-            tokenAddress,
-            name,
-            symbol,
-            imageURI,
-            totalRaised,
-            launched,
-            lpUnlockTime
-        ] = await this.publicClient.readContract({
+        const info = await this.publicClient.readContract({
             address: this.address,
             abi: fivefivefivelauncherAbi,
             functionName: 'getLaunchInfo',
             args: [launchId]
-        }) as readonly [Address, string, string, string, bigint, boolean, bigint]
+        }) as any;
 
         return {
-            tokenAddress,
-            name,
-            symbol,
-            imageURI,
-            totalRaised,
-            launched,
-            lpUnlockTime
-        }
+            tokenAddress: info[0],
+            name: info[1],
+            symbol: info[2],
+            imageURI: info[3],
+            totalRaised: info[4],
+            launched: info[5],
+            creator: info[6],
+            lpUnlockTime: info[7],
+            tokenPrice: info[8],
+            tokensForSale: info[9],
+            tokensSold: info[10],
+            ponderRequired: info[11],
+            ponderCollected: info[12]
+        };
     }
 
     async getSaleInfo(launchId: bigint): Promise<SaleInfo> {
-        const [
-            tokenPrice,
-            tokensForSale,
-            tokensSold,
-            totalRaised,
-            launched,
-            remainingTokens
-        ] = await this.publicClient.readContract({
+        const info = await this.publicClient.readContract({
             address: this.address,
             abi: fivefivefivelauncherAbi,
             functionName: 'getSaleInfo',
             args: [launchId]
-        }) as readonly [bigint, bigint, bigint, bigint, boolean, bigint]
+        }) as any;
 
         return {
-            tokenPrice,
-            tokensForSale,
-            tokensSold,
-            totalRaised,
-            launched,
-            remainingTokens
-        }
+            tokenPrice: info[0],
+            tokensForSale: info[1],
+            tokensSold: info[2],
+            totalRaised: info[3],
+            launched: info[4],
+            remainingTokens: info[5]
+        };
+    }
+
+    async calculatePonderRequirements(launchId: bigint): Promise<PonderMetrics> {
+        const info = await this.getLaunchInfo(launchId);
+
+        // Calculate PONDER allocations based on raise target
+        const totalRequired = info.ponderRequired;
+        return {
+            lpAllocation: (totalRequired * this.PONDER_LP_ALLOCATION) / 100n,
+            protocolLPAllocation: (totalRequired * this.PONDER_PROTOCOL_LP) / 100n,
+            burnAmount: (totalRequired * this.PONDER_BURN) / 100n,
+            requiredAmount: totalRequired
+        };
     }
 
     // Write Methods
-    async createLaunch(params: CreateLaunchParams): Promise<CreateLaunchResult> {
-        if (!this.walletClient) throw new Error('Wallet client required')
+    async createLaunch(params: CreateLaunchParams): Promise<Hash> {
+        if (!this.walletClient?.account?.address) throw new Error('Wallet client required');
 
-        const hash = await this.walletClient.writeContract({
-            chain: this.chain,
+        const { request } = await this.publicClient.simulateContract({
             address: this.address,
             abi: fivefivefivelauncherAbi,
             functionName: 'createLaunch',
-            args: [params.name, params.symbol, params.imageURI]
-        } as unknown as WriteContractParameters)
+            args: [params.name, params.symbol, params.imageURI],
+            account: this.walletClient.account.address,
+            chain: this.chain,
+        });
 
-        const wait = async () => {
-            const receipt = await this.publicClient.waitForTransactionReceipt({ hash })
-            const launchCreatedLog = receipt.logs.find(log =>
-                log.topics[0] === '0x21a4dad170a6bf476c31bbf74b1e6416c50bb31c38fba37cb54387f2d88af654' // LaunchCreated event signature
-            )
-            if (!launchCreatedLog || !launchCreatedLog.topics[1] || !launchCreatedLog.topics[2]) {
-                throw new Error('Launch creation failed')
-            }
-
-            return {
-                launchId: BigInt('0x' + launchCreatedLog.topics[1].slice(2)),
-                tokenAddress: `0x${launchCreatedLog.topics[2].slice(26)}` as Address
-            }
-        }
-
-        return { hash, wait }
+        return this.walletClient.writeContract(request as WriteContractParameters);
     }
 
-    async contribute(launchId: bigint, value: bigint): Promise<Hash> {
-        if (!this.walletClient) throw new Error('Wallet client required')
+    async contribute(launchId: bigint): Promise<Hash> {
+        if (!this.walletClient?.account?.address) throw new Error('Wallet client required');
 
-        return this.walletClient.writeContract({
-            chain: this.chain,
+        const { request } = await this.publicClient.simulateContract({
             address: this.address,
             abi: fivefivefivelauncherAbi,
             functionName: 'contribute',
             args: [launchId],
-            value
-        } as unknown as WriteContractParameters)
+            account: this.walletClient.account.address,
+            chain: this.chain,
+        });
+
+        return this.walletClient.writeContract(request as WriteContractParameters);
     }
 
     async withdrawLP(launchId: bigint): Promise<Hash> {
-        if (!this.walletClient) throw new Error('Wallet client required')
+        if (!this.walletClient?.account?.address) throw new Error('Wallet client required');
 
-        return this.walletClient.writeContract({
-            chain: this.chain,
+        const { request } = await this.publicClient.simulateContract({
             address: this.address,
             abi: fivefivefivelauncherAbi,
             functionName: 'withdrawLP',
-            args: [launchId]
-        } as unknown as WriteContractParameters)
+            args: [launchId],
+            account: this.walletClient.account.address,
+            chain: this.chain,
+        });
+
+        return this.walletClient.writeContract(request as WriteContractParameters);
     }
 }
 
-export type PonderLauncher = FiveFiveFiveLauncher
+export type PonderLauncher = FiveFiveFiveLauncher;

@@ -6,8 +6,8 @@ import {
   type WriteContractParameters,
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
+import { LAUNCHER_ABI, TOKEN_ABI } from "@/abis";
 import { bitkubTestnetChain } from "@/constants/chains";
-import { LAUNCHER_ABI } from "@/abis";
 
 interface CreateLaunchParams {
   name: string;
@@ -22,6 +22,12 @@ interface CreateLaunchResult {
     address: Address;
     name: string;
     symbol: string;
+  };
+  ponderMetrics: {
+    required: bigint;
+    lpAllocation: bigint;
+    protocolLPAmount: bigint;
+    burnAmount: bigint;
   };
   events: {
     launchCreated?: {
@@ -38,25 +44,18 @@ interface CreateLaunchResult {
   };
 }
 
-// Define event types
-type LaunchCreatedEvent = {
-  eventName: "LaunchCreated";
-  args: {
-    launchId: bigint;
-    token: Address;
-    creator: Address;
-    imageURI: string;
-  };
-};
+// Validation types
+interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
 
-type TokenMintedEvent = {
-  eventName: "TokenMinted";
-  args: {
-    launchId: bigint;
-    tokenAddress: Address;
-    amount: bigint;
-  };
-};
+interface LaunchRequirements {
+  ponderBalance: bigint;
+  ponderRequired: bigint;
+  canCreate: boolean;
+  errors: string[];
+}
 
 export function useCreateLaunch(): UseMutationResult<
   CreateLaunchResult,
@@ -65,18 +64,112 @@ export function useCreateLaunch(): UseMutationResult<
 > {
   const sdk = usePonderSDK();
 
+  // Helper to validate launch parameters
+  const validateLaunchParams = (
+    params: CreateLaunchParams
+  ): ValidationResult => {
+    const errors: string[] = [];
+
+    // Name validation
+    if (!params.name) errors.push("Name is required");
+    if (params.name.length > 32)
+      errors.push("Name too long (max 32 characters)");
+
+    // Symbol validation
+    if (!params.symbol) errors.push("Symbol is required");
+    if (params.symbol.length > 8)
+      errors.push("Symbol too long (max 8 characters)");
+
+    // Image URI validation
+    if (!params.imageURI) errors.push("Image URI is required");
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
+  };
+
+  // Query hook to check launch requirements
+  const useLaunchRequirements = async (): Promise<LaunchRequirements> => {
+    if (!sdk.walletClient?.account) {
+      return {
+        ponderBalance: 0n,
+        ponderRequired: 0n,
+        canCreate: false,
+        errors: ["Wallet not connected"],
+      };
+    }
+
+    const [ponderBalance, launchCount] = await Promise.all([
+      sdk.ponder.balanceOf(sdk.walletClient.account.address),
+      sdk.launcher.launchCount(),
+    ]);
+
+    // Calculate PONDER requirement based on launch mechanics
+    const ponderRequired = sdk.launcher.TARGET_RAISE;
+    const errors: string[] = [];
+
+    if (ponderBalance < ponderRequired) {
+      errors.push(
+        `Insufficient PONDER balance. Required: ${ponderRequired.toString()}`
+      );
+    }
+
+    return {
+      ponderBalance,
+      ponderRequired,
+      canCreate: errors.length === 0,
+      errors,
+    };
+  };
+
   return useMutation({
     mutationFn: async (params: CreateLaunchParams) => {
       if (!sdk.walletClient?.account) {
         throw new Error("Wallet not connected");
       }
 
-      // Validate inputs
-      if (!params.name || !params.symbol || !params.imageURI) {
-        throw new Error("Invalid launch parameters");
+      // Validate parameters
+      const validation = validateLaunchParams(params);
+      if (!validation.isValid) {
+        throw new Error(
+          `Invalid launch parameters: ${validation.errors.join(", ")}`
+        );
       }
 
-      // Simulate the launch creation with separate arguments
+      // Check requirements
+      const requirements = await useLaunchRequirements();
+      if (!requirements.canCreate) {
+        throw new Error(
+          `Cannot create launch: ${requirements.errors.join(", ")}`
+        );
+      }
+
+      // Check and update PONDER allowance if needed
+      const ponderAllowance = await sdk.ponder.allowance(
+        sdk.walletClient.account.address,
+        sdk.launcher.address
+      );
+
+      if (ponderAllowance < requirements.ponderRequired) {
+        const { request: approvalRequest } =
+          await sdk.publicClient.simulateContract({
+            address: sdk.ponder.address,
+            abi: TOKEN_ABI,
+            functionName: "approve",
+            args: [sdk.launcher.address, requirements.ponderRequired],
+            account: sdk.walletClient.account.address,
+            chain: bitkubTestnetChain,
+          });
+
+        const approvalTx = await sdk.walletClient.writeContract(
+          approvalRequest as WriteContractParameters
+        );
+
+        await sdk.publicClient.waitForTransactionReceipt({ hash: approvalTx });
+      }
+
+      // Create launch
       const { request } = await sdk.publicClient.simulateContract({
         address: sdk.launcher.address,
         abi: LAUNCHER_ABI,
@@ -86,12 +179,11 @@ export function useCreateLaunch(): UseMutationResult<
         chain: bitkubTestnetChain,
       });
 
-      // Execute the launch creation
       const hash = await sdk.walletClient.writeContract(
         request as WriteContractParameters
       );
 
-      // Wait for transaction receipt
+      // Process receipt and decode events
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
         hash,
         confirmations: 1,
@@ -99,39 +191,39 @@ export function useCreateLaunch(): UseMutationResult<
 
       const events: CreateLaunchResult["events"] = {};
 
-      // Process all logs
       for (const log of receipt.logs) {
         try {
+          const eventId = log?.topics[0]?.toLowerCase();
+
+          // LaunchCreated event
           if (
-            log.topics[0] ===
+            eventId ===
             "0x21a4dad170a6bf476c31bbf74b1e6416c50bb31c38fba37cb54387f2d88af654"
           ) {
-            // LaunchCreated event
             const decoded = decodeEventLog({
               abi: LAUNCHER_ABI,
               data: log.data,
               topics: log.topics,
               eventName: "LaunchCreated",
-            }) as LaunchCreatedEvent;
-
+            });
             events.launchCreated = {
               launchId: decoded.args.launchId,
               token: decoded.args.token,
               creator: decoded.args.creator,
               imageURI: decoded.args.imageURI,
             };
-          } else if (
-            log.topics[0] ===
+          }
+          // TokenMinted event
+          else if (
+            eventId ===
             "0xf0c86f5052b32d6681ea46c0174f8c3bdf2514f05a4c4af3e207616cc0885c4e"
           ) {
-            // TokenMinted event
             const decoded = decodeEventLog({
               abi: LAUNCHER_ABI,
               data: log.data,
               topics: log.topics,
               eventName: "TokenMinted",
-            }) as TokenMintedEvent;
-
+            });
             events.tokenMinted = {
               launchId: decoded.args.launchId,
               token: decoded.args.tokenAddress,
@@ -139,7 +231,7 @@ export function useCreateLaunch(): UseMutationResult<
             };
           }
         } catch (error) {
-          console.warn("Failed to decode log:", error);
+          console.warn("Failed to decode event:", error);
           continue;
         }
       }
@@ -147,6 +239,19 @@ export function useCreateLaunch(): UseMutationResult<
       if (!events.launchCreated) {
         throw new Error("Launch creation failed: no LaunchCreated event found");
       }
+
+      // Calculate PONDER metrics
+      const ponderMetrics = {
+        required: requirements.ponderRequired,
+        lpAllocation:
+          (requirements.ponderRequired * sdk.launcher.PONDER_LP_ALLOCATION) /
+          100n,
+        protocolLPAmount:
+          (requirements.ponderRequired * sdk.launcher.PONDER_PROTOCOL_LP) /
+          100n,
+        burnAmount:
+          (requirements.ponderRequired * sdk.launcher.PONDER_BURN) / 100n,
+      };
 
       return {
         hash,
@@ -156,6 +261,7 @@ export function useCreateLaunch(): UseMutationResult<
           name: params.name,
           symbol: params.symbol,
         },
+        ponderMetrics,
         events,
       };
     },

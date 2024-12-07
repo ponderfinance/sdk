@@ -21,6 +21,7 @@ import {
   type UserInfo,
 } from "./contracts/masterchef";
 import { LaunchToken, type PonderLaunchToken } from "./contracts/launchtoken";
+import { Pondertoken } from "./contracts/pondertoken";
 import {
   FiveFiveFiveLauncher,
   type PonderLauncher,
@@ -37,6 +38,7 @@ import {
   KKUBUnwrapper,
   type PonderKKUBUnwrapper,
 } from "./contracts/kkubunwrapper";
+import { PONDER_ADDRESSES } from "@/constants/addresses";
 
 interface SDKConfig {
   chainId: SupportedChainId;
@@ -57,6 +59,7 @@ export class PonderSDK {
   private _kkubUnwrapper: KKUBUnwrapper;
   private _pairs: Map<Address, Pair>;
   private _launchTokens: Map<Address, LaunchToken>;
+  private _ponder: Pondertoken;
 
   constructor({ chainId, publicClient, walletClient }: SDKConfig) {
     this.chainId = chainId;
@@ -100,6 +103,12 @@ export class PonderSDK {
       this.publicClient,
       this._walletClient
     );
+    this._ponder = new Pondertoken(
+      this.chainId,
+      PONDER_ADDRESSES[chainId].ponderToken,
+      this.publicClient,
+      this._walletClient
+    );
     this._pairs = new Map();
     this._launchTokens = new Map();
   }
@@ -126,6 +135,10 @@ export class PonderSDK {
 
   get kkubUnwrapper(): KKUBUnwrapper {
     return this._kkubUnwrapper;
+  }
+
+  get ponder(): Pondertoken {
+    return this._ponder;
   }
 
   get walletClient(): WalletClient | undefined {
@@ -184,6 +197,12 @@ export class PonderSDK {
       this.publicClient,
       walletClient
     );
+    this._ponder = new Pondertoken(
+      this.chainId,
+      PONDER_ADDRESSES[this.chainId].ponderToken,
+      this.publicClient,
+      walletClient
+    );
 
     // Update existing instances
     for (const [address, _] of this._pairs) {
@@ -209,7 +228,6 @@ export class PonderSDK {
     return this.getPair(pairAddress);
   }
 
-  // Helper method for unwrapping KKUB
   public async unwrapKKUB(amount: bigint, recipient: Address): Promise<Hash> {
     return this._kkubUnwrapper.unwrapKKUB(amount, recipient);
   }
@@ -227,6 +245,8 @@ export { LaunchToken, type PonderLaunchToken };
 export { FiveFiveFiveLauncher, type PonderLauncher };
 export { PriceOracle, type PonderPriceOracle };
 export { KKUBUnwrapper, type PonderKKUBUnwrapper };
+export { Pondertoken };
+export type { PonderToken } from "./contracts/pondertoken";
 
 // Type exports
 export type { SDKConfig as PonderSDKConfig };

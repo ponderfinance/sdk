@@ -164,11 +164,11 @@ export class LaunchToken {
         })
     }
 
-    async CREATOR_SWAP_FEE(): Promise<bigint> {
+    async CREATOR_FEE(): Promise<bigint> {
         return this.publicClient.readContract({
             address: this.address,
             abi: launchtokenAbi,
-            functionName: 'CREATOR_SWAP_FEE'
+            functionName: 'CREATOR_FEE'
         })
     }
 

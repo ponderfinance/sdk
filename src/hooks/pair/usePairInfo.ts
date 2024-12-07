@@ -1,10 +1,11 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { type Address, erc20Abi } from "viem";
+import { type Address } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
-import { type PonderPair } from "@/contracts/pair";
+import { erc20Abi } from "viem";
 import { launchtokenAbi } from "@ponderfinance/dex";
 
 export interface PairInfo {
+  // Basic pair data
   address: Address;
   token0: Address;
   token1: Address;
@@ -16,16 +17,26 @@ export interface PairInfo {
   reserve1: bigint;
   totalSupply: bigint;
   kLast: bigint;
+
+  // Fee configuration
   fee: {
-    LP: bigint; // 0.3% by default
-    creator: bigint; // 0.1% if launch token
-    recipient?: Address; // Creator address if it's a launch token
+    LP: bigint;                // 30 = 0.3% by default
+    creator: bigint;           // 10 = 0.1% if launch token
+    recipient?: Address;       // Creator address if launch token
+  };
+
+  // Launch token specific info
+  launch?: {
+    token: Address;           // Which token is the launch token
+    creator: Address;         // Creator address
+    launcher: Address;        // Launcher contract
+    isPair0Launch: boolean;   // Whether token0 is launch token
   };
 }
 
 export function usePairInfo(
-  pairAddress: Address | undefined,
-  enabled = true
+    pairAddress: Address | undefined,
+    enabled = true
 ): UseQueryResult<PairInfo> {
   const sdk = usePonderSDK();
 
@@ -42,29 +53,37 @@ export function usePairInfo(
         pair.token1(),
         pair.getReserves(),
         pair.totalSupply(),
-        pair.kLast(), // Changed from getKLast() to kLast()
+        pair.kLast(),
       ]);
 
-      // Function to safely get token info
+      // Function to safely get token info including launch token check
       async function getTokenInfo(tokenAddress: Address) {
         let isLaunchToken = false;
-        let creator: Address | undefined;
+        let launchData: {
+          creator: Address;
+          launcher: Address;
+        } | undefined;
 
         try {
           // Try to read launcher() to check if it's a launch token
-          const launcherAddress = await sdk.publicClient.readContract({
+          const launcher = await sdk.publicClient.readContract({
             address: tokenAddress,
             abi: launchtokenAbi,
             functionName: "launcher",
-          });
+          }) as Address;
 
-          if (launcherAddress === sdk.launcher.address) {
+          if (launcher === sdk.launcher.address) {
             isLaunchToken = true;
-            creator = (await sdk.publicClient.readContract({
+            const creator = await sdk.publicClient.readContract({
               address: tokenAddress,
               abi: launchtokenAbi,
               functionName: "creator",
-            })) as Address;
+            }) as Address;
+
+            launchData = {
+              creator,
+              launcher
+            };
           }
         } catch {
           // Not a launch token - this is expected for regular ERC20s
@@ -88,7 +107,7 @@ export function usePairInfo(
           symbol: symbol as string,
           decimals: decimals as number,
           isLaunchToken,
-          creator,
+          launchData
         };
       }
 
@@ -98,16 +117,32 @@ export function usePairInfo(
         getTokenInfo(token1),
       ]);
 
-      // Determine fees - 0.1% creator fee if either token is a launch token
-      let creatorFee = BigInt(0);
+      // Determine fee configuration based on launch token status
+      let lpFee = 30n; // Default 0.3%
+      let creatorFee = 0n;
       let creatorAddress: Address | undefined;
+      let launchInfo;
 
-      if (token0Info.isLaunchToken) {
-        creatorFee = BigInt(10); // 0.1%
-        creatorAddress = token0Info.creator;
-      } else if (token1Info.isLaunchToken) {
-        creatorFee = BigInt(10); // 0.1%
-        creatorAddress = token1Info.creator;
+      if (token0Info.isLaunchToken && token0Info.launchData) {
+        lpFee = 20n; // 0.2%
+        creatorFee = 10n; // 0.1%
+        creatorAddress = token0Info.launchData.creator;
+        launchInfo = {
+          token: token0,
+          creator: token0Info.launchData.creator,
+          launcher: token0Info.launchData.launcher,
+          isPair0Launch: true
+        };
+      } else if (token1Info.isLaunchToken && token1Info.launchData) {
+        lpFee = 20n; // 0.2%
+        creatorFee = 10n; // 0.1%
+        creatorAddress = token1Info.launchData.creator;
+        launchInfo = {
+          token: token1,
+          creator: token1Info.launchData.creator,
+          launcher: token1Info.launchData.launcher,
+          isPair0Launch: false
+        };
       }
 
       return {
@@ -123,10 +158,11 @@ export function usePairInfo(
         totalSupply,
         kLast,
         fee: {
-          LP: 30n, // 0.3%
+          LP: lpFee,
           creator: creatorFee,
-          recipient: creatorAddress,
+          recipient: creatorAddress
         },
+        launch: launchInfo
       };
     },
     enabled: enabled && !!pairAddress,
