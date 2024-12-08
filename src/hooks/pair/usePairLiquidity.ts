@@ -105,8 +105,8 @@ export function usePairLiquidity(
 
       // Calculate token amounts based on share
       const share = (balance * 10000n) / totalSupply;
-      const token0Amount = (pairInfo.reserve0 * share) / 10000n;
-      const token1Amount = (pairInfo.reserve1 * share) / 10000n;
+      const token0Amount = (BigInt(pairInfo.reserve0)* share) / 10000n;
+      const token1Amount = (BigInt(pairInfo.reserve1)* share) / 10000n;
 
       return {
         tokenA: pairInfo.token0,

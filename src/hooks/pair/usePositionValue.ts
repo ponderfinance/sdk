@@ -69,8 +69,8 @@ export function usePositionValue(
       const sharePercent = Number((lpBalance * 10000n) / totalSupply) / 100;
 
       // Calculate token amounts
-      const token0Amount = (pairInfo.reserve0 * lpBalance) / totalSupply;
-      const token1Amount = (pairInfo.reserve1 * lpBalance) / totalSupply;
+      const token0Amount = (BigInt(pairInfo.reserve0)* lpBalance) / totalSupply;
+      const token1Amount = (BigInt(pairInfo.reserve1)* lpBalance) / totalSupply;
 
       // Try to get USD values if oracle is available
       let token0ValueUSD: number | undefined;

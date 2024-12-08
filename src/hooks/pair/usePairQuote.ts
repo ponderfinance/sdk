@@ -56,7 +56,7 @@ export function usePairQuote(
       const { tokenA, tokenB, amountADesired, amountBDesired } = params;
 
       // Handle first liquidity provision
-      if (pairInfo.reserve0 === 0n && pairInfo.reserve1 === 0n) {
+      if (BigInt(pairInfo.reserve0)=== 0n && BigInt(pairInfo.reserve1)=== 0n) {
         if (!amountADesired || !amountBDesired) {
           throw new Error("Both amounts required for first liquidity");
         }

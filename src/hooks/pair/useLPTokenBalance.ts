@@ -38,8 +38,8 @@ export function useLPTokenBalance(
         Number((balance * 10000n) / pairInfo.totalSupply) / 100;
 
       // Calculate token amounts based on reserves and share
-      const token0Amount = (pairInfo.reserve0 * balance) / pairInfo.totalSupply;
-      const token1Amount = (pairInfo.reserve1 * balance) / pairInfo.totalSupply;
+      const token0Amount = (BigInt(pairInfo.reserve0)* balance) / pairInfo.totalSupply;
+      const token1Amount = (BigInt(pairInfo.reserve1)* balance) / pairInfo.totalSupply;
 
       // Optional: Get USD value if oracle is available
       let usdValue: bigint | undefined;
