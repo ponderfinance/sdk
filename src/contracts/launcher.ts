@@ -163,11 +163,11 @@ export class FiveFiveFiveLauncher {
         const info = await this.getLaunchInfo(launchId);
 
         // Calculate PONDER allocations based on raise target
-        const totalRequired = info.ponderRequired;
+        const totalRequired = BigInt(info.ponderRequired);
         return {
-            lpAllocation: (totalRequired * this.PONDER_LP_ALLOCATION) / 100n,
-            protocolLPAllocation: (totalRequired * this.PONDER_PROTOCOL_LP) / 100n,
-            burnAmount: (totalRequired * this.PONDER_BURN) / 100n,
+            lpAllocation: (totalRequired * BigInt(this.PONDER_LP_ALLOCATION)) / 100n,
+            protocolLPAllocation: (totalRequired * BigInt(this.PONDER_PROTOCOL_LP)) / 100n,
+            burnAmount: (totalRequired * BigInt(this.PONDER_BURN)) / 100n,
             requiredAmount: totalRequired
         };
     }
