@@ -6,7 +6,7 @@ import {
   decodeEventLog,
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
-import { LAUNCHER_ABI, TOKEN_ABI } from "@/abis";
+import { LAUNCHER_ABI } from "@/abis";
 import { bitkubTestnetChain } from "@/constants/chains";
 
 interface ContributeParams {
@@ -49,9 +49,9 @@ interface ContributeResult {
 }
 
 export function useContribute(): UseMutationResult<
-    ContributeResult,
-    Error,
-    ContributeParams
+  ContributeResult,
+  Error,
+  ContributeParams
 > {
   const sdk = usePonderSDK();
 
@@ -64,41 +64,17 @@ export function useContribute(): UseMutationResult<
       // Get launch info and required PONDER amount
       const [launchInfo, ponderMetrics] = await Promise.all([
         sdk.launcher.getLaunchInfo(launchId),
-        sdk.launcher.calculatePonderRequirements()
+        sdk.launcher.calculatePonderRequirements(),
       ]);
 
-      // Check PONDER balance and allowance
-      const [ponderBalance, ponderAllowance] = await Promise.all([
-        sdk.ponder.balanceOf(sdk.walletClient.account.address),
-        sdk.ponder.allowance(
-            sdk.walletClient.account.address,
-            sdk.launcher.address
-        )
-      ]);
+      // Check PONDER balance
+      const ponderBalance = await sdk.ponder.balanceOf(
+        sdk.walletClient.account.address
+      );
 
       // Validate PONDER balance
       if (ponderBalance < ponderMetrics.requiredAmount) {
         throw new Error("Insufficient PONDER balance");
-      }
-
-      // Approve PONDER if needed
-      if (ponderAllowance < ponderMetrics.requiredAmount) {
-        const { request } = await sdk.publicClient.simulateContract({
-          address: sdk.ponder.address,
-          abi: TOKEN_ABI,
-          functionName: "approve",
-          args: [sdk.launcher.address, ponderMetrics.requiredAmount],
-          account: sdk.walletClient.account.address,
-          chain: bitkubTestnetChain
-        });
-
-        const approvalTx = await sdk.walletClient.writeContract(
-            request as WriteContractParameters
-        );
-
-        await sdk.publicClient.waitForTransactionReceipt({
-          hash: approvalTx
-        });
       }
 
       // Contribute to launch
@@ -112,7 +88,7 @@ export function useContribute(): UseMutationResult<
       });
 
       const hash = await sdk.walletClient.writeContract(
-          request as WriteContractParameters
+        request as WriteContractParameters
       );
 
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
@@ -125,8 +101,8 @@ export function useContribute(): UseMutationResult<
       for (const log of receipt.logs) {
         try {
           if (
-              log.topics[0] ===
-              "0xe893c2681d327421d89e1cb54e44586c36d9a0a37c1bca6cd4e93ac234db355e"
+            log.topics[0] ===
+            "0xe893c2681d327421d89e1cb54e44586c36d9a0a37c1bca6cd4e93ac234db355e"
           ) {
             // Contributed event
             const decoded = decodeEventLog({
@@ -141,8 +117,8 @@ export function useContribute(): UseMutationResult<
               amount: decoded.args.amount,
             };
           } else if (
-              log.topics[0] ===
-              "0x74357e3e382064e1dfe9b2793e87ec9f6cd7459544e2c85c1c72e3a97591c91"
+            log.topics[0] ===
+            "0x74357e3e382064e1dfe9b2793e87ec9f6cd7459544e2c85c1c72e3a97591c91"
           ) {
             // PonderContributed event
             const decoded = decodeEventLog({
@@ -157,8 +133,8 @@ export function useContribute(): UseMutationResult<
               amount: decoded.args.amount,
             };
           } else if (
-              log.topics[0] ===
-              "0x9c8993b809ea69f964db3a53c24ed7bc8e8935d4114a31604656125bdf32c2d0"
+            log.topics[0] ===
+            "0x9c8993b809ea69f964db3a53c24ed7bc8e8935d4114a31604656125bdf32c2d0"
           ) {
             // TokenPurchased event
             const decoded = decodeEventLog({
@@ -174,8 +150,8 @@ export function useContribute(): UseMutationResult<
               tokenAmount: decoded.args.tokenAmount,
             };
           } else if (
-              log.topics[0] ===
-              "0x4859432e4c6ddb3d7e54959edea5b348d16bb60da60673621d49c2689874539c"
+            log.topics[0] ===
+            "0x4859432e4c6ddb3d7e54959edea5b348d16bb60da60673621d49c2689874539c"
           ) {
             // PonderBurned event
             const decoded = decodeEventLog({
@@ -191,14 +167,14 @@ export function useContribute(): UseMutationResult<
           }
         } catch (error) {
           console.warn("Failed to decode log:", error);
-          continue;
         }
       }
 
       return {
         hash,
         contribution: {
-          ponderAmount: events.ponderContributed?.amount || ponderMetrics.requiredAmount,
+          ponderAmount:
+            events.ponderContributed?.amount || ponderMetrics.requiredAmount,
           tokensReceived: events.tokenPurchased?.tokenAmount || 0n,
         },
         ponderMetrics: {
