@@ -64,7 +64,7 @@ export function useContribute(): UseMutationResult<
       // Get launch info and required PONDER amount
       const [launchInfo, ponderMetrics] = await Promise.all([
         sdk.launcher.getLaunchInfo(launchId),
-        sdk.launcher.calculatePonderRequirements(launchId)
+        sdk.launcher.calculatePonderRequirements()
       ]);
 
       // Check PONDER balance and allowance

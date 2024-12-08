@@ -111,9 +111,7 @@ export function useLPInfo(
           lpBalance > 0n ? (ponderReserve * lpBalance) / totalSupply : 0n;
 
         // Get launch allocation metrics
-        const ponderMetrics = await sdk.launcher.calculatePonderRequirements(
-          launchId
-        );
+        const ponderMetrics = await sdk.launcher.calculatePonderRequirements();
         ponderLPAmount = ponderMetrics.lpAllocation;
         protocolLPAmount = ponderMetrics.protocolLPAllocation;
       }
