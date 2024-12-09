@@ -11,6 +11,7 @@ import { bitkubTestnetChain } from "@/constants/chains";
 
 interface ContributeParams {
   launchId: bigint;
+  amount: bigint;
 }
 
 interface ContributeResult {
@@ -56,7 +57,7 @@ export function useContribute(): UseMutationResult<
   const sdk = usePonderSDK();
 
   return useMutation({
-    mutationFn: async ({ launchId }: ContributeParams) => {
+    mutationFn: async ({ launchId, amount }: ContributeParams) => {
       if (!sdk.walletClient?.account) {
         throw new Error("Wallet not connected");
       }
@@ -82,7 +83,7 @@ export function useContribute(): UseMutationResult<
         address: sdk.launcher.address,
         abi: LAUNCHER_ABI,
         functionName: "contribute",
-        args: [launchId],
+        args: [launchId, amount],
         account: sdk.walletClient.account.address,
         chain: bitkubTestnetChain,
       });

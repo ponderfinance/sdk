@@ -234,7 +234,7 @@ export class FiveFiveFiveLauncher {
     return this.walletClient.writeContract(request as WriteContractParameters);
   }
 
-  async contribute(launchId: bigint): Promise<Hash> {
+  async contribute(launchId: bigint, amount: bigint): Promise<Hash> {
     if (!this.walletClient?.account?.address)
       throw new Error("Wallet client required");
 
@@ -242,7 +242,7 @@ export class FiveFiveFiveLauncher {
       address: this.address,
       abi: fivefivefivelauncherAbi,
       functionName: "contribute",
-      args: [launchId],
+      args: [launchId, amount],
       account: this.walletClient.account.address,
       chain: this.chain,
     });
