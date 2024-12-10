@@ -2,8 +2,8 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { type Address } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { erc20Abi } from "viem";
-import { launchtokenAbi } from "@ponderfinance/dex";
-import { PonderPair } from "@/contracts/pair";
+import { type SupportedChainId } from "@/constants/chains";
+import { Pair } from "@/contracts/pair";
 
 export interface PairInfo {
   // Basic pair data
@@ -38,7 +38,7 @@ export interface PairInfo {
 export function usePairInfo(
   pairAddress: Address | undefined,
   enabled = true
-): UseQueryResult<PonderPair | undefined> {
+): UseQueryResult<PairInfo & { asPair: () => Pair }> {
   const sdk = usePonderSDK();
 
   return useQuery({
@@ -57,40 +57,7 @@ export function usePairInfo(
         pair.kLast(),
       ]);
 
-      // Function to safely get token info including launch token check
       async function getTokenInfo(tokenAddress: Address) {
-        let isLaunchToken = false;
-        let launchData:
-          | {
-              creator: Address;
-              launcher: Address;
-            }
-          | undefined;
-
-        try {
-          const launcher = (await sdk.publicClient.readContract({
-            address: tokenAddress,
-            abi: launchtokenAbi,
-            functionName: "launcher",
-          })) as Address;
-
-          if (launcher === sdk.launcher.address) {
-            isLaunchToken = true;
-            const creator = (await sdk.publicClient.readContract({
-              address: tokenAddress,
-              abi: launchtokenAbi,
-              functionName: "creator",
-            })) as Address;
-
-            launchData = {
-              creator,
-              launcher,
-            };
-          }
-        } catch {
-          // Not a launch token - this is expected for regular ERC20s
-        }
-
         const [symbol, decimals] = await Promise.all([
           sdk.publicClient.readContract({
             address: tokenAddress,
@@ -104,13 +71,7 @@ export function usePairInfo(
           }),
         ]);
 
-        return {
-          address: tokenAddress,
-          symbol: symbol as string,
-          decimals: decimals as number,
-          isLaunchToken,
-          launchData,
-        };
+        return { symbol: symbol as string, decimals: decimals as number };
       }
 
       const [token0Info, token1Info] = await Promise.all([
@@ -118,10 +79,10 @@ export function usePairInfo(
         getTokenInfo(token1),
       ]);
 
-      return {
+      const pairInfo: PairInfo = {
         address: pairAddress,
-        token0: token0Info.address,
-        token1: token1Info.address,
+        token0,
+        token1,
         token0Symbol: token0Info.symbol,
         token1Symbol: token1Info.symbol,
         token0Decimals: token0Info.decimals,
@@ -130,8 +91,16 @@ export function usePairInfo(
         reserve1: reserves.reserve1,
         totalSupply,
         kLast,
-        name: () => `${token0Info.symbol}/${token1Info.symbol}`,
-        getReserves: () => reserves,
+        fee: {
+          LP: 30n,
+          creator: 0n,
+        },
+      };
+
+      return {
+        ...pairInfo,
+        asPair: () =>
+          new Pair(1 as SupportedChainId, pairInfo.address, sdk.publicClient),
       };
     },
     enabled: enabled && !!pairAddress,
