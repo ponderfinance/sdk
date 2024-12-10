@@ -19,28 +19,30 @@ export interface PriceHistory {
 }
 
 interface UsePriceHistoryParams {
-  pair: PonderPair;
+  pair: PonderPair | undefined;
   tokenIn: Address;
   period: "1h" | "24h" | "7d" | "30d";
-  interval?: number; // Interval in seconds between points
+  enabled?: boolean;
+  refetchInterval?: number; // Time in ms for automatic refetch
 }
 
 export function usePriceHistory({
   pair,
   tokenIn,
   period,
-  interval,
+  enabled = true,
+  refetchInterval,
 }: UsePriceHistoryParams): UseQueryResult<PriceHistory> {
   const sdk = usePonderSDK();
 
   return useQuery({
-    queryKey: ["ponder", "priceHistory", pair.address, tokenIn, period],
+    queryKey: ["ponder", "priceHistory", pair?.address, tokenIn, period],
     queryFn: async () => {
-      // Get all observations from oracle
+      if (!pair) throw new Error("Pair is required to fetch price history.");
+
       const observations = await sdk.oracle.getPriceHistory(pair.address);
       const baseAmount = 10n ** 18n;
 
-      // Filter observations based on period
       const periodSeconds = {
         "1h": 3600,
         "24h": 86400,
@@ -55,25 +57,13 @@ export function usePriceHistory({
         (obs) => Number(obs.timestamp) >= startTime
       );
 
-      // Calculate prices for each observation
-      const points: PricePoint[] = await Promise.all(
-        relevantObs.map(async (obs) => {
-          // Use cumulative price differences to calculate spot price
-          const spotPrice = Number(obs.price0Cumulative) / Number(baseAmount);
+      const points: PricePoint[] = relevantObs.map((obs) => ({
+        timestamp: Number(obs.timestamp),
+        price: Number(obs.price0Cumulative) / Number(baseAmount),
+        priceUSD: Number(obs.price0Cumulative) / Number(baseAmount),
+        volume: 0n,
+      }));
 
-          // Get volume data from pair events
-          const volume = 0n; // TODO: Implement volume tracking
-
-          return {
-            timestamp: Number(obs.timestamp),
-            price: spotPrice,
-            priceUSD: spotPrice, // TODO: Implement USD conversion
-            volume,
-          };
-        })
-      );
-
-      // Calculate statistics
       const prices = points.map((p) => p.price);
       const minPrice = Math.min(...prices);
       const maxPrice = Math.max(...prices);
@@ -88,6 +78,8 @@ export function usePriceHistory({
         totalVolume,
       };
     },
-    staleTime: 60_000, // 1 minute
+    enabled: enabled && !!pair,
+    refetchInterval,
+    staleTime: 60_000,
   });
 }
