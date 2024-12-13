@@ -6,11 +6,9 @@ import { getChainFromId } from '@/constants/chains'
 import { PONDER_ADDRESSES } from '@/constants/addresses'
 
 export interface Observation {
-    timestamp: bigint
+    timestamp: number
     price0Cumulative: bigint
     price1Cumulative: bigint
-    price0Average: bigint
-    price1Average: bigint
 }
 
 export class PriceOracle {
@@ -52,19 +50,17 @@ export class PriceOracle {
     }
 
     async observations(pair: Address, index: bigint): Promise<Observation> {
-        const [timestamp, price0Cumulative, price1Cumulative, price0Average, price1Average] = await this.publicClient.readContract({
+        const [timestamp, price0Cumulative, price1Cumulative] = await this.publicClient.readContract({
             address: this.address,
             abi: ponderpriceoracleAbi,
             functionName: 'observations',
             args: [pair, index]
-        }) as readonly  [bigint, bigint, bigint, bigint, bigint]
+        }) as readonly  [number, bigint, bigint]
 
         return {
             timestamp,
             price0Cumulative,
             price1Cumulative,
-            price0Average,
-            price1Average
         }
     }
 

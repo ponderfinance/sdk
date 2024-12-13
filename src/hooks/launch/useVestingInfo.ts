@@ -96,7 +96,7 @@ async function getLaunchTokenVesting(
 
   const [creator, creatorFees] = await Promise.all([
     token.creator(),
-    token.CREATOR_FEE(),
+    token.creatorFee(),
   ]);
 
   return {

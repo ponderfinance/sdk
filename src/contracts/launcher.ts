@@ -54,6 +54,19 @@ export interface PonderMetrics {
   requiredAmount: bigint; // Total PONDER needed
 }
 
+interface PoolInfo {
+  memeKubPair: `0x${string}`;
+  memePonderPair: `0x${string}`;
+  hasSecondaryPool: boolean;
+}
+
+interface ContributionInfo {
+  kubCollected: bigint;
+  ponderCollected: bigint;
+  ponderValueCollected: bigint;
+  totalValue: bigint;
+}
+
 export class FiveFiveFiveLauncher {
   public readonly chainId: SupportedChainId;
   public readonly address: Address;
@@ -73,6 +86,14 @@ export class FiveFiveFiveLauncher {
   public readonly PONDER_LP_ALLOCATION = 50n; // 50% to launch token/PONDER LP
   public readonly PONDER_PROTOCOL_LP = 30n; // 30% to PONDER/KUB LP
   public readonly PONDER_BURN = 20n; // 20% burned
+
+  public readonly BASIS_POINTS = 10000n;
+  public readonly KUB_TO_MEME_KUB_LP = 6000n;
+  public readonly KUB_TO_MEME_PONDER_LP = 2000n;
+  public readonly KUB_TO_PONDER_KUB_LP = 2000n;
+  public readonly PONDER_TO_BURN = 2000n;
+  public readonly PONDER_TO_MEME_PONDER = 8000n;
+  public readonly PRICE_STALENESS_THRESHOLD = 7200n;
 
   constructor(
     chainId: SupportedChainId,
@@ -152,21 +173,38 @@ export class FiveFiveFiveLauncher {
     };
   }
 
-  async getSaleInfo(launchId: bigint): Promise<SaleInfo> {
-    const info = (await this.publicClient.readContract({
+  // Add new method for getting pool info
+  async getPoolInfo(launchId: bigint): Promise<PoolInfo> {
+    const [memeKubPair, memePonderPair, hasSecondaryPool] = await this.publicClient.readContract({
       address: this.address,
       abi: fivefivefivelauncherAbi,
-      functionName: "getSaleInfo",
+      functionName: "getPoolInfo",
       args: [launchId],
-    })) as any;
+    }) as readonly [`0x${string}`, `0x${string}`, boolean];
 
     return {
-      tokenPrice: info[0],
-      tokensForSale: info[1],
-      tokensSold: info[2],
-      totalRaised: info[3],
-      launched: info[4],
-      remainingTokens: info[5],
+      memeKubPair,
+      memePonderPair,
+      hasSecondaryPool
+    };
+  }
+
+  // Add method for getting contribution info
+
+  async getContributionInfo(launchId: bigint): Promise<ContributionInfo> {
+    const [kubCollected, ponderCollected, ponderValueCollected, totalValue] =
+        await this.publicClient.readContract({
+          address: this.address,
+          abi: fivefivefivelauncherAbi,
+          functionName: "getContributionInfo",
+          args: [launchId],
+        }) as readonly [bigint, bigint, bigint, bigint];
+
+    return {
+      kubCollected,
+      ponderCollected,
+      ponderValueCollected,
+      totalValue
     };
   }
 
@@ -234,14 +272,33 @@ export class FiveFiveFiveLauncher {
     return this.walletClient.writeContract(request as WriteContractParameters);
   }
 
-  async contribute(launchId: bigint, amount: bigint): Promise<Hash> {
+  // Update method name to match contract
+  async contributeKUB(launchId: bigint, amount: bigint): Promise<Hash> {
     if (!this.walletClient?.account?.address)
       throw new Error("Wallet client required");
 
     const { request } = await this.publicClient.simulateContract({
       address: this.address,
       abi: fivefivefivelauncherAbi,
-      functionName: "contribute",
+      functionName: "contributeKUB",
+      args: [launchId],
+      account: this.walletClient.account.address,
+      chain: this.chain,
+      value: amount, // Now amount is defined
+    });
+
+    return this.walletClient.writeContract(request as WriteContractParameters);
+  }
+
+  // Add new method for PONDER contribution
+  async contributePONDER(launchId: bigint, amount: bigint): Promise<Hash> {
+    if (!this.walletClient?.account?.address)
+      throw new Error("Wallet client required");
+
+    const { request } = await this.publicClient.simulateContract({
+      address: this.address,
+      abi: fivefivefivelauncherAbi,
+      functionName: "contributePONDER",
       args: [launchId, amount],
       account: this.walletClient.account.address,
       chain: this.chain,

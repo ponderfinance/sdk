@@ -36,10 +36,12 @@ interface CreateLaunchResult {
       creator: Address;
       imageURI: string;
     };
-    tokenMinted?: {
+    dualPoolsCreated?: {
       launchId: bigint;
-      token: Address;
-      amount: bigint;
+      memeKubPair: Address;
+      memePonderPair: Address;
+      kubLiquidity: bigint;
+      ponderLiquidity: bigint;
     };
   };
 }
@@ -213,26 +215,27 @@ export function useCreateLaunch(): UseMutationResult<
               imageURI: decoded.args.imageURI,
             };
           }
-          // TokenMinted event
+          // DualPoolsCreated event
           else if (
             eventId ===
-            "0xf0c86f5052b32d6681ea46c0174f8c3bdf2514f05a4c4af3e207616cc0885c4e"
+            "0x8d7c3c56f4e7f949b483f37118c9b7d56c947690b5ff3db6757b7c634c23a4b9"
           ) {
             const decoded = decodeEventLog({
               abi: LAUNCHER_ABI,
               data: log.data,
               topics: log.topics,
-              eventName: "TokenMinted",
+              eventName: "DualPoolsCreated",
             });
-            events.tokenMinted = {
+            events.dualPoolsCreated = {
               launchId: decoded.args.launchId,
-              token: decoded.args.tokenAddress,
-              amount: decoded.args.amount,
+              memeKubPair: decoded.args.memeKubPair,
+              memePonderPair: decoded.args.memePonderPair,
+              kubLiquidity: decoded.args.kubLiquidity,
+              ponderLiquidity: decoded.args.ponderLiquidity,
             };
           }
         } catch (error) {
           console.warn("Failed to decode event:", error);
-          continue;
         }
       }
 
