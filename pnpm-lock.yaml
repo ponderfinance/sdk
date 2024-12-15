@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   '@ponderfinance/dex':
-    specifier: ^0.1.18
-    version: 0.1.18
+    specifier: ^0.1.19
+    version: 0.1.19
   '@tanstack/react-query':
     specifier: ^5.62.2
     version: 5.62.7(react@19.0.0)
@@ -949,8 +949,8 @@ packages:
     dev: true
     optional: true
 
-  /@ponderfinance/dex@0.1.18:
-    resolution: {integrity: sha512-mjcE+y196z2IhnpycQCsQm2+nr5lirlWwXaDmjg1ASgsDMBf+Jdgjv+9auC3Xe8X13ifyKpRO4iyA2cHfgghuA==}
+  /@ponderfinance/dex@0.1.19:
+    resolution: {integrity: sha512-SW9RGYyC+F+cevcHDJ8qCY/Ov7YT3dEANRRFLPT9T+dIEeeLML5in1028U92Uh44Yjy/W43HeX39Nq3MPOZJwg==}
     dev: false
 
   /@rollup/rollup-android-arm-eabi@4.28.1:

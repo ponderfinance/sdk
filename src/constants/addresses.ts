@@ -14,7 +14,7 @@ export interface PonderAddresses {
 // Contract addresses for each supported chain
 export const PONDER_ADDRESSES: Record<ChainId, PonderAddresses> = {
   25925: {
-    factory: "0x508e58280e8F6F569fB76abccA4D9d0C2628eCCF",
+    factory: "0x8bbF4D401CEf727fE6f9481d921e4a95E74e4d5A",
     router: "0x423F20A48Acb0DA3fCeE26EeF478bFbDA81f342A",
     masterChef: "0x03BcEb600169a54994aee2102CCB8A2BFcB0f777",
     launcher: "0x508e58280e8F6F569fB76abccA4D9d0C2628eCCF",
