@@ -176,7 +176,13 @@ export function useCreateLaunch(): UseMutationResult<
         address: sdk.launcher.address,
         abi: LAUNCHER_ABI,
         functionName: "createLaunch",
-        args: [params.name, params.symbol, params.imageURI],
+        args: [
+          {
+            name: params.name,
+            symbol: params.symbol,
+            imageURI: params.imageURI,
+          },
+        ],
         account: sdk.walletClient.account.address,
         chain: bitkubTestnetChain,
       });

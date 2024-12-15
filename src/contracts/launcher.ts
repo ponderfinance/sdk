@@ -175,17 +175,18 @@ export class FiveFiveFiveLauncher {
 
   // Add new method for getting pool info
   async getPoolInfo(launchId: bigint): Promise<PoolInfo> {
-    const [memeKubPair, memePonderPair, hasSecondaryPool] = await this.publicClient.readContract({
-      address: this.address,
-      abi: fivefivefivelauncherAbi,
-      functionName: "getPoolInfo",
-      args: [launchId],
-    }) as readonly [`0x${string}`, `0x${string}`, boolean];
+    const [memeKubPair, memePonderPair, hasSecondaryPool] =
+      (await this.publicClient.readContract({
+        address: this.address,
+        abi: fivefivefivelauncherAbi,
+        functionName: "getPoolInfo",
+        args: [launchId],
+      })) as readonly [`0x${string}`, `0x${string}`, boolean];
 
     return {
       memeKubPair,
       memePonderPair,
-      hasSecondaryPool
+      hasSecondaryPool,
     };
   }
 
@@ -193,18 +194,18 @@ export class FiveFiveFiveLauncher {
 
   async getContributionInfo(launchId: bigint): Promise<ContributionInfo> {
     const [kubCollected, ponderCollected, ponderValueCollected, totalValue] =
-        await this.publicClient.readContract({
-          address: this.address,
-          abi: fivefivefivelauncherAbi,
-          functionName: "getContributionInfo",
-          args: [launchId],
-        }) as readonly [bigint, bigint, bigint, bigint];
+      (await this.publicClient.readContract({
+        address: this.address,
+        abi: fivefivefivelauncherAbi,
+        functionName: "getContributionInfo",
+        args: [launchId],
+      })) as readonly [bigint, bigint, bigint, bigint];
 
     return {
       kubCollected,
       ponderCollected,
       ponderValueCollected,
-      totalValue
+      totalValue,
     };
   }
 
@@ -264,7 +265,9 @@ export class FiveFiveFiveLauncher {
       address: this.address,
       abi: fivefivefivelauncherAbi,
       functionName: "createLaunch",
-      args: [params.name, params.symbol, params.imageURI],
+      args: [
+        { name: params.name, symbol: params.symbol, imageURI: params.imageURI },
+      ],
       account: this.walletClient.account.address,
       chain: this.chain,
     });
