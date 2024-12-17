@@ -18,14 +18,14 @@ interface SwapCalldataParams {
   tokenIn: Address;
   tokenOut: Address;
   amount: bigint;
-  slippageBps: number; // e.g., 50 = 0.5%
+  slippageBps: number;
   recipient?: Address;
   deadline?: bigint;
 }
 
 export function useSwapCalldata(
-  params: SwapCalldataParams | undefined,
-  enabled = true
+    params: SwapCalldataParams | undefined,
+    enabled = true
 ): UseQueryResult<SwapCalldata> {
   const sdk = usePonderSDK();
 
@@ -36,6 +36,11 @@ export function useSwapCalldata(
         throw new Error("Params and connected wallet required");
       }
 
+      // Validate addresses
+      if (!params.tokenIn || !params.tokenOut) {
+        throw new Error("Invalid token addresses");
+      }
+
       const {
         exactIn = true,
         tokenIn,
@@ -43,68 +48,91 @@ export function useSwapCalldata(
         amount,
         slippageBps,
         recipient = sdk.walletClient.account.address,
-        deadline = BigInt(Math.floor(Date.now() / 1000) + 1200), // 20 minutes
+        deadline = BigInt(Math.floor(Date.now() / 1000) + 1200),
       } = params;
 
-      // Get optimal path
-      const path = [tokenIn, tokenOut];
+      // Validate path exists
+      const pair = await sdk.factory.getPair(tokenIn, tokenOut);
+      if (pair === "0x0000000000000000000000000000000000000000") {
+        throw new Error("No liquidity pair exists");
+      }
 
-      // Check if this involves ETH/KKUB
+      // Get WETH address
       const weth = await sdk.router.WETH();
       const isEthIn = tokenIn.toLowerCase() === weth.toLowerCase();
       const isEthOut = tokenOut.toLowerCase() === weth.toLowerCase();
 
-      // Calculate minimum output or maximum input based on slippage
-      let amountMin: bigint | undefined;
-      let amountMax: bigint | undefined;
+      try {
+        // Calculate amounts for exact input or output
+        let amountIn: bigint;
+        let amountOut: bigint;
+        let amountMin: bigint | undefined;
+        let amountMax: bigint | undefined;
 
-      if (exactIn) {
-        const [, amountOut] = await sdk.router.getAmountsOut(amount, path);
-        amountMin = (amountOut * BigInt(10000 - slippageBps)) / 10000n;
-      } else {
-        const [amountIn] = await sdk.router.getAmountsIn(amount, path);
-        amountMax = (amountIn * BigInt(10000 + slippageBps)) / 10000n;
-      }
+        const path = [tokenIn, tokenOut];
 
-      let functionName: string;
-      let args: any[];
-      let value = 0n;
-
-      if (isEthIn) {
-        functionName = "swapExactETHForTokens";
-        args = [amountMin!, path, recipient, deadline];
-        value = amount;
-      } else if (isEthOut) {
         if (exactIn) {
-          functionName = "swapExactTokensForETH";
-          args = [amount, amountMin!, path, recipient, deadline];
+          [amountIn, amountOut] = await sdk.router.getAmountsOut(amount, path);
+          amountMin = (amountOut * BigInt(10000 - slippageBps)) / 10000n;
         } else {
-          functionName = "swapTokensForExactETH";
-          args = [amount, amountMax!, path, recipient, deadline];
+          [amountIn, amountOut] = await sdk.router.getAmountsIn(amount, path);
+          amountMax = (amountIn * BigInt(10000 + slippageBps)) / 10000n;
         }
-      } else {
-        if (exactIn) {
-          functionName = "swapExactTokensForTokens";
-          args = [amount, amountMin!, path, recipient, deadline];
+
+        // Determine function name and arguments based on swap type
+        let functionName: string;
+        let args: readonly unknown[];
+        let value = 0n;
+
+        if (isEthIn) {
+          if (exactIn) {
+            functionName = "swapExactETHForTokens";
+            args = [amountMin!, path, recipient, deadline];
+            value = amountIn;
+          } else {
+            functionName = "swapETHForExactTokens";
+            args = [amountOut, path, recipient, deadline];
+            value = amountMax!;
+          }
+        } else if (isEthOut) {
+          if (exactIn) {
+            functionName = "swapExactTokensForETH";
+            args = [amountIn, amountMin!, path, recipient, deadline];
+          } else {
+            functionName = "swapTokensForExactETH";
+            args = [amountOut, amountMax!, path, recipient, deadline];
+          }
         } else {
-          functionName = "swapTokensForExactTokens";
-          args = [amount, amountMax!, path, recipient, deadline];
+          if (exactIn) {
+            functionName = "swapExactTokensForTokens";
+            args = [amountIn, amountMin!, path, recipient, deadline];
+          } else {
+            functionName = "swapTokensForExactTokens";
+            args = [amountOut, amountMax!, path, recipient, deadline];
+          }
         }
+
+        // Encode function call
+        const data = encodeFunctionData({
+          abi: ROUTER_ABI,
+          functionName,
+          args,
+        } as EncodeFunctionDataParameters);
+
+        return {
+          to: sdk.router.address,
+          data,
+          value,
+        };
+      } catch (error) {
+        if (error instanceof Error) {
+          throw new Error(`Swap calculation failed: ${error.message}`);
+        }
+        throw new Error("Failed to calculate swap");
       }
-
-      const data = encodeFunctionData({
-        abi: ROUTER_ABI,
-        functionName,
-        args,
-      } as EncodeFunctionDataParameters);
-
-      return {
-        to: sdk.router.address,
-        data,
-        value,
-      };
     },
     enabled: enabled && !!params && !!sdk.walletClient?.account,
-    staleTime: 10_000, // 10 seconds
+    staleTime: 10_000,
+    retry: false,
   });
 }

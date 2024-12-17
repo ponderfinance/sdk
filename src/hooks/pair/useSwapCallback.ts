@@ -10,6 +10,7 @@ interface SwapCallbackParams {
   recipient?: Address;
   slippageBps?: number; // e.g., 50 = 0.5%
   deadline?: bigint;
+  exactIn?: boolean;
 }
 
 interface SwapCalldata {
@@ -18,6 +19,14 @@ interface SwapCalldata {
   value: bigint;
   gasLimit: bigint;
 }
+
+type RouterFunction =
+  | "swapExactETHForTokens"
+  | "swapETHForExactTokens"
+  | "swapExactTokensForETH"
+  | "swapTokensForExactETH"
+  | "swapExactTokensForTokens"
+  | "swapTokensForExactTokens";
 
 export function useSwapCallback(params: SwapCallbackParams): {
   calldata: SwapCalldata | null;
@@ -41,47 +50,99 @@ export function useSwapCallback(params: SwapCallbackParams): {
       const {
         route,
         recipient = sdk.walletClient.account.address,
-        slippageBps = 50, // 0.5% default slippage
-        deadline = BigInt(Math.floor(Date.now() / 1000) + 1200), // 20 minutes
+        slippageBps = 50,
+        deadline = BigInt(Math.floor(Date.now() / 1000) + 1200),
+        exactIn = true,
       } = params;
 
-      // Calculate minimum output amount with slippage
-      const amountOutMin =
-        (route.amountOut * BigInt(10000 - slippageBps)) / BigInt(10000);
-
-      // Check if it's an ETH trade by comparing first token with WETH
+      // Determine token paths and check ETH involvement
       const isETHIn = route.path[0].toLowerCase() === wethAddress.toLowerCase();
+      const isETHOut =
+        route.path[route.path.length - 1].toLowerCase() ===
+        wethAddress.toLowerCase();
 
-      const functionNameTyped = isETHIn
-        ? "swapExactETHForTokens"
-        : ("swapExactTokensForTokens" as const);
+      // Calculate amounts with slippage
+      const amountOutMin = exactIn
+        ? (route.amountOut * BigInt(10000 - slippageBps)) / BigInt(10000)
+        : route.amountOut;
+      const amountInMax = !exactIn
+        ? (route.amountIn * BigInt(10000 + slippageBps)) / BigInt(10000)
+        : route.amountIn;
 
-      const argsTyped = isETHIn
-        ? ([amountOutMin, route.path, recipient, deadline] as const)
-        : ([
+      let functionName: RouterFunction;
+      let args: unknown[];
+      let value = 0n;
+
+      // Determine function and arguments based on swap type
+      if (isETHIn) {
+        if (exactIn) {
+          functionName = "swapExactETHForTokens";
+          args = [amountOutMin, route.path, recipient, deadline];
+          value = route.amountIn;
+        } else {
+          functionName = "swapETHForExactTokens";
+          args = [route.amountOut, route.path, recipient, deadline];
+          value = amountInMax;
+        }
+      } else if (isETHOut) {
+        if (exactIn) {
+          functionName = "swapExactTokensForETH";
+          args = [
             route.amountIn,
             amountOutMin,
             route.path,
             recipient,
             deadline,
-          ] as const);
+          ];
+        } else {
+          functionName = "swapTokensForExactETH";
+          args = [
+            route.amountOut,
+            amountInMax,
+            route.path,
+            recipient,
+            deadline,
+          ];
+        }
+      } else {
+        if (exactIn) {
+          functionName = "swapExactTokensForTokens";
+          args = [
+            route.amountIn,
+            amountOutMin,
+            route.path,
+            recipient,
+            deadline,
+          ];
+        } else {
+          functionName = "swapTokensForExactTokens";
+          args = [
+            route.amountOut,
+            amountInMax,
+            route.path,
+            recipient,
+            deadline,
+          ];
+        }
+      }
 
-      // Encode the function call
+      // Encode the function call with proper typing
       const data = encodeFunctionData({
         abi: ROUTER_ABI,
-        functionName: functionNameTyped,
-        args: argsTyped,
+        functionName,
+        args: args as any, // Type assertion needed due to complex ABI types
       });
 
-      // Estimate gas limit with buffer
-      const gasLimit =
-        BigInt(route.hops.length) * BigInt(150000) + BigInt(50000);
+      // Calculate gas limit based on path length and swap type
+      const baseGas = BigInt(150000);
+      const hopGas = BigInt(100000);
+      const gasLimit = baseGas + BigInt(route.hops.length) * hopGas;
 
       return {
         calldata: {
           to: sdk.router.address,
           data,
-          value: isETHIn ? route.amountIn : BigInt(0),
+          value,
           gasLimit,
         },
       };
