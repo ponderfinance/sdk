@@ -2,6 +2,14 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { type Address } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 
+// Constants from PonderPair.sol
+const BASIS_POINTS = 10000n;
+const STANDARD_FEE = 30n; // 0.3% (30/10000)
+const KUB_LP_FEE = 20n; // 0.2% (20/10000)
+const KUB_CREATOR_FEE = 10n; // 0.1% (10/10000)
+const PONDER_LP_FEE = 15n; // 0.15% (15/10000)
+const PONDER_CREATOR_FEE = 15n; // 0.15% (15/10000)
+
 export interface SwapRoute {
   path: Address[];
   pairs: Address[];
@@ -53,59 +61,97 @@ export function useSwapRoute(
         throw new Error("Either amountIn or amountOut required");
       }
 
-      // Direct pair check first
+      // Check direct pair first
       const directPair = await sdk.factory.getPair(tokenIn, tokenOut);
+
       if (directPair !== "0x0000000000000000000000000000000000000000") {
-        // Calculate direct route
         const pair = sdk.getPair(directPair);
         const [token0, reserves] = await Promise.all([
           pair.token0(),
           pair.getReserves(),
         ]);
 
+        // Handle fee calculation based on pair type
         const isToken0In = tokenIn.toLowerCase() === token0.toLowerCase();
         const [reserveIn, reserveOut] = isToken0In
           ? [reserves.reserve0, reserves.reserve1]
           : [reserves.reserve1, reserves.reserve0];
 
-        if (amountIn) {
-          const amountOutDirect = await sdk.router.getAmountOut(
-            amountIn,
-            reserveIn,
-            reserveOut
-          );
+        // Determine pair type and fees
+        const isLaunchToken = await isTokenLaunchToken(sdk, tokenIn);
+        const isPonderPair = await isPonderTokenPair(sdk, tokenIn, tokenOut);
 
-          // Calculate price impact
-          const priceImpact = calculatePriceImpact(
-            amountIn,
-            amountOutDirect,
-            reserveIn,
-            reserveOut
-          );
+        let protocolFee: bigint;
+        let creatorFee: bigint;
 
-          return {
-            path: [tokenIn, tokenOut],
-            pairs: [directPair],
-            amountIn,
-            amountOut: amountOutDirect,
-            priceImpact,
-            totalFee: (amountIn * 3n) / 1000n, // 0.3% fee
-            hops: [
-              {
-                pair: directPair,
-                tokenIn,
-                tokenOut,
-                amountIn,
-                amountOut: amountOutDirect,
-                fee: (amountIn * 3n) / 1000n,
-                priceImpact,
-              },
-            ],
-          };
+        if (isLaunchToken) {
+          if (isPonderPair) {
+            protocolFee = PONDER_LP_FEE;
+            creatorFee = PONDER_CREATOR_FEE;
+          } else {
+            protocolFee = KUB_LP_FEE;
+            creatorFee = KUB_CREATOR_FEE;
+          }
+        } else {
+          protocolFee = STANDARD_FEE;
+          creatorFee = 0n;
         }
+
+        // Calculate amounts with fees
+        const totalFee = protocolFee + creatorFee;
+        let amountOutWithFees: bigint = 0n;
+
+        if (amountIn) {
+          const effectiveAmountIn =
+            (amountIn * (BASIS_POINTS - totalFee)) / BASIS_POINTS;
+          amountOutWithFees = await sdk.router.getAmountOut(
+            effectiveAmountIn,
+            reserveIn,
+            reserveOut
+          );
+        } else if (amountOut) {
+          const amountInWithFees = await sdk.router.getAmountIn(
+            amountOut,
+            reserveIn,
+            reserveOut
+          );
+          const effectiveAmountIn =
+            (amountInWithFees * BASIS_POINTS) / (BASIS_POINTS - totalFee);
+          amountOutWithFees = amountOut;
+        } else {
+          throw new Error("Either amountIn or amountOut must be provided");
+        }
+
+        // Calculate price impact
+        const priceImpact = calculatePriceImpact(
+          amountIn || 0n,
+          amountOutWithFees,
+          reserveIn,
+          reserveOut
+        );
+
+        return {
+          path: [tokenIn, tokenOut],
+          pairs: [directPair],
+          amountIn: amountIn || 0n,
+          amountOut: amountOutWithFees,
+          priceImpact,
+          totalFee: ((amountIn || 0n) * totalFee) / BASIS_POINTS,
+          hops: [
+            {
+              pair: directPair,
+              tokenIn,
+              tokenOut,
+              amountIn: amountIn || 0n,
+              amountOut: amountOutWithFees,
+              fee: ((amountIn || 0n) * totalFee) / BASIS_POINTS,
+              priceImpact,
+            },
+          ],
+        };
       }
 
-      // Get all pairs for finding routes
+      // Find multi-hop route if no direct pair exists
       const allPairs = await getAllPairs(sdk);
       const routes = await findAllRoutes(
         sdk,
@@ -119,15 +165,16 @@ export function useSwapRoute(
         throw new Error("No route found");
       }
 
-      // Calculate amounts for each route
+      // Calculate amounts for each route considering fees
       const routeDetails = await Promise.all(
         routes.map(async (route) => {
+          // Get amounts through the path
           const amounts = amountIn
             ? await sdk.router.getAmountsOut(amountIn, route)
             : await sdk.router.getAmountsIn(amountOut!, route);
 
           let totalPriceImpact = 0;
-          let totalFee = 0n;
+          let totalFees = 0n;
           const hops: SwapRoute["hops"] = [];
 
           // Calculate per-hop details
@@ -136,8 +183,10 @@ export function useSwapRoute(
             const tokenOut = route[i + 1];
             const pair = await sdk.factory.getPair(tokenIn, tokenOut);
             const pairContract = sdk.getPair(pair);
-            const reserves = await pairContract.getReserves();
-            const token0 = await pairContract.token0();
+            const [token0, reserves] = await Promise.all([
+              pairContract.token0(),
+              pairContract.getReserves(),
+            ]);
 
             const isToken0In = tokenIn.toLowerCase() === token0.toLowerCase();
             const [reserveIn, reserveOut] = isToken0In
@@ -146,7 +195,29 @@ export function useSwapRoute(
 
             const hopAmountIn = amounts[i];
             const hopAmountOut = amounts[i + 1];
-            const hopFee = (hopAmountIn * 3n) / 1000n;
+
+            // Calculate fees for this hop
+            const isLaunchToken = await isTokenLaunchToken(sdk, tokenIn);
+            const isPonderPair = await isPonderTokenPair(
+              sdk,
+              tokenIn,
+              tokenOut
+            );
+
+            let hopFee: bigint;
+            if (isLaunchToken) {
+              if (isPonderPair) {
+                hopFee =
+                  (hopAmountIn * (PONDER_LP_FEE + PONDER_CREATOR_FEE)) /
+                  BASIS_POINTS;
+              } else {
+                hopFee =
+                  (hopAmountIn * (KUB_LP_FEE + KUB_CREATOR_FEE)) / BASIS_POINTS;
+              }
+            } else {
+              hopFee = (hopAmountIn * STANDARD_FEE) / BASIS_POINTS;
+            }
+
             const hopImpact = calculatePriceImpact(
               hopAmountIn,
               hopAmountOut,
@@ -155,7 +226,7 @@ export function useSwapRoute(
             );
 
             totalPriceImpact += hopImpact;
-            totalFee += hopFee;
+            totalFees += hopFee;
 
             hops.push({
               pair,
@@ -174,7 +245,7 @@ export function useSwapRoute(
             amountIn: amounts[0],
             amountOut: amounts[amounts.length - 1],
             priceImpact: totalPriceImpact,
-            totalFee,
+            totalFee: totalFees,
             hops,
           };
         })
@@ -195,6 +266,29 @@ export function useSwapRoute(
     enabled: enabled && !!params && (!!params.amountIn || !!params.amountOut),
     staleTime: 10_000, // 10 seconds
   });
+}
+
+// Helper function to check if a token is a launch token
+async function isTokenLaunchToken(sdk: any, token: Address): Promise<boolean> {
+  try {
+    const launcher = await sdk.getLaunchToken(token).launcher();
+    return launcher === sdk.launcher.address;
+  } catch {
+    return false;
+  }
+}
+
+// Helper function to check if pair involves PONDER token
+async function isPonderTokenPair(
+  sdk: any,
+  token0: Address,
+  token1: Address
+): Promise<boolean> {
+  const ponderAddress = await sdk.getPonderToken().getAddress();
+  return (
+    token0.toLowerCase() === ponderAddress.toLowerCase() ||
+    token1.toLowerCase() === ponderAddress.toLowerCase()
+  );
 }
 
 // Helper function to get all pairs
@@ -274,58 +368,8 @@ function calculatePriceImpact(
   reserveIn: bigint,
   reserveOut: bigint
 ): number {
+  if (amountIn === 0n) return 0;
   const exactQuote = (amountIn * reserveOut) / reserveIn;
   const slippage = ((exactQuote - amountOut) * 10000n) / exactQuote;
   return Number(slippage) / 100;
-}
-
-// Types for route finding
-export interface RouteHop {
-  pair: Address;
-  tokenIn: Address;
-  tokenOut: Address;
-  amountIn: bigint;
-  amountOut: bigint;
-  fee: bigint;
-  priceImpact: number;
-}
-
-export interface RouteOptions {
-  maxHops?: number;
-  includedPairs?: Address[];
-  excludedPairs?: Address[];
-  maxImpact?: number; // Max acceptable price impact percentage
-}
-
-// Export helper functions that could be useful elsewhere
-export function getBestRoute(
-  routes: SwapRoute[],
-  amountIn: boolean
-): SwapRoute {
-  return routes.reduce((best, current) => {
-    if (!best) return current;
-    return amountIn
-      ? current.amountOut > best.amountOut
-        ? current
-        : best
-      : current.amountIn < best.amountIn
-      ? current
-      : best;
-  });
-}
-
-export function computeRouteMetrics(route: SwapRoute): {
-  totalGasEstimate: bigint;
-  totalMinReceived: bigint;
-  averagePriceImpact: number;
-} {
-  const totalGasEstimate = BigInt(route.hops.length) * BigInt(150000); // Approximate gas per hop
-  const totalMinReceived = (route.amountOut * 997n) / 1000n; // 0.3% slippage per hop
-  const averagePriceImpact = route.priceImpact / route.hops.length;
-
-  return {
-    totalGasEstimate,
-    totalMinReceived,
-    averagePriceImpact,
-  };
 }

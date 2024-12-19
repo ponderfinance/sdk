@@ -5,6 +5,9 @@ import { usePonderSDK } from "@/context/PonderContext";
 import { type SwapRoute } from "@/hooks";
 import { ROUTER_ABI } from "@/abis";
 
+// Constants for calculations
+const BASIS_POINTS = 10000n;
+
 interface SwapCallbackParams {
   route?: SwapRoute;
   recipient?: Address;
@@ -51,7 +54,7 @@ export function useSwapCallback(params: SwapCallbackParams): {
         route,
         recipient = sdk.walletClient.account.address,
         slippageBps = 50,
-        deadline = BigInt(Math.floor(Date.now() / 1000) + 1200),
+        deadline = BigInt(Math.floor(Date.now() / 1000) + 1200), // 20 minutes
         exactIn = true,
       } = params;
 
@@ -78,7 +81,7 @@ export function useSwapCallback(params: SwapCallbackParams): {
         if (exactIn) {
           functionName = "swapExactETHForTokens";
           args = [amountOutMin, route.path, recipient, deadline];
-          value = route.amountIn;
+          value = route.amountIn; // Full ETH amount - fees taken in contract
         } else {
           functionName = "swapETHForExactTokens";
           args = [route.amountOut, route.path, recipient, deadline];
@@ -88,7 +91,7 @@ export function useSwapCallback(params: SwapCallbackParams): {
         if (exactIn) {
           functionName = "swapExactTokensForETH";
           args = [
-            route.amountIn,
+            route.amountIn, // Full token amount - fees taken in contract
             amountOutMin,
             route.path,
             recipient,
@@ -108,7 +111,7 @@ export function useSwapCallback(params: SwapCallbackParams): {
         if (exactIn) {
           functionName = "swapExactTokensForTokens";
           args = [
-            route.amountIn,
+            route.amountIn, // Full token amount - fees taken in contract
             amountOutMin,
             route.path,
             recipient,
@@ -126,7 +129,7 @@ export function useSwapCallback(params: SwapCallbackParams): {
         }
       }
 
-      // Encode the function call with proper typing
+      // Encode function call
       const data = encodeFunctionData({
         abi: ROUTER_ABI,
         functionName,
@@ -134,10 +137,11 @@ export function useSwapCallback(params: SwapCallbackParams): {
       });
 
       // Calculate gas limit based on path length and swap type
-      const baseGas = BigInt(150000);
-      const hopGas = BigInt(100000);
+      const baseGas = 150000n;
+      const hopGas = 100000n;
       const gasLimit = baseGas + BigInt(route.hops.length) * hopGas;
 
+      // Return formatted calldata
       return {
         calldata: {
           to: sdk.router.address,

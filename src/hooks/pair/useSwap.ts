@@ -8,15 +8,14 @@ import {
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { PAIR_ABI, ROUTER_ABI } from "@/abis";
-import { bitkubTestnetChain } from "@/constants/chains";
 
 type RouterFunctionName =
-    | "swapExactTokensForTokens"
-    | "swapTokensForExactTokens"
-    | "swapExactETHForTokens"
-    | "swapETHForExactTokens"
-    | "swapExactTokensForETH"
-    | "swapTokensForExactETH";
+  | "swapExactTokensForTokens"
+  | "swapTokensForExactTokens"
+  | "swapExactETHForTokens"
+  | "swapETHForExactTokens"
+  | "swapExactTokensForETH"
+  | "swapTokensForExactETH";
 
 type SwapFunctionArgs = {
   swapExactTokensForTokens: readonly [
@@ -97,17 +96,18 @@ interface SwapETHForExactTokensParams extends BaseSwapParams {
 }
 
 type SwapParams =
-    | { type: "exactTokensForTokens"; params: SwapExactTokensForTokensParams }
-    | { type: "tokensForExactTokens"; params: SwapTokensForExactTokensParams }
-    | {
-  type: "exactETHForTokens";
-  params: SwapExactETHForTokensParams;
-  value: bigint;
-}
-    | { type: "tokensForExactETH"; params: SwapTokensForExactETHParams }
-    | { type: "exactTokensForETH"; params: SwapExactTokensForETHParams }
-    | { type: "ETHForExactTokens"; params: SwapETHForExactTokensParams };
+  | { type: "exactTokensForTokens"; params: SwapExactTokensForTokensParams }
+  | { type: "tokensForExactTokens"; params: SwapTokensForExactTokensParams }
+  | {
+      type: "exactETHForTokens";
+      params: SwapExactETHForTokensParams;
+      value: bigint;
+    }
+  | { type: "ETHForExactTokens"; params: SwapETHForExactTokensParams }
+  | { type: "exactTokensForETH"; params: SwapExactTokensForETHParams }
+  | { type: "tokensForExactETH"; params: SwapTokensForExactETHParams };
 
+// Response types
 export interface SwapResult {
   hash: Hash;
   amounts: {
@@ -136,27 +136,6 @@ export interface SwapResult {
   };
 }
 
-type SwapEvent = {
-  eventName: "Swap";
-  args: {
-    sender: Address;
-    amount0In: bigint;
-    amount1In: bigint;
-    amount0Out: bigint;
-    amount1Out: bigint;
-    to: Address;
-  };
-};
-
-type TransferEvent = {
-  eventName: "Transfer";
-  args: {
-    from: Address;
-    to: Address;
-    value: bigint;
-  };
-};
-
 function getFunctionName(type: SwapParams["type"]): RouterFunctionName {
   switch (type) {
     case "exactTokensForTokens":
@@ -175,7 +154,7 @@ function getFunctionName(type: SwapParams["type"]): RouterFunctionName {
 }
 
 function getSwapArgs(
-    swapData: SwapParams
+  swapData: SwapParams
 ): SwapFunctionArgs[RouterFunctionName] {
   const path = swapData.params.path as readonly `0x${string}`[];
   const to = swapData.params.to as `0x${string}`;
@@ -211,26 +190,30 @@ function getSwapArgs(
 }
 
 function getSimulateParams(
-    sdk: any,
-    swapData: SwapParams,
-    functionName: RouterFunctionName,
-    args: SwapFunctionArgs[RouterFunctionName]
+  sdk: any,
+  swapData: SwapParams,
+  functionName: RouterFunctionName,
+  args: SwapFunctionArgs[RouterFunctionName]
 ): SimulateContractParameters {
   const baseParams = {
     address: sdk.router.address as `0x${string}`,
     abi: ROUTER_ABI,
     account: sdk.walletClient.account.address,
-    chain: bitkubTestnetChain,
   };
 
   if (
-      functionName === "swapExactETHForTokens" ||
-      functionName === "swapETHForExactTokens"
+    functionName === "swapExactETHForTokens" ||
+    functionName === "swapETHForExactTokens"
   ) {
     return {
       ...baseParams,
       functionName,
-      args: args as readonly [bigint, readonly `0x${string}`[], `0x${string}`, bigint],
+      args: args as readonly [
+        bigint,
+        readonly `0x${string}`[],
+        `0x${string}`,
+        bigint
+      ],
       value: "value" in swapData ? swapData.value : 0n,
     };
   }
@@ -249,15 +232,15 @@ function getSimulateParams(
 }
 
 function calculateAmounts(
-    swapData: SwapParams,
-    transfers: Array<{ from: Address; to: Address; value: bigint }>
+  swapData: SwapParams,
+  transfers: Array<{ from: Address; to: Address; value: bigint }>
 ) {
   const isETHIn =
-      swapData.type === "exactETHForTokens" ||
-      swapData.type === "ETHForExactTokens";
+    swapData.type === "exactETHForTokens" ||
+    swapData.type === "ETHForExactTokens";
   const isETHOut =
-      swapData.type === "exactTokensForETH" ||
-      swapData.type === "tokensForExactETH";
+    swapData.type === "exactTokensForETH" ||
+    swapData.type === "tokensForExactETH";
 
   let amountIn: bigint;
   let amountOut: bigint;
@@ -267,16 +250,16 @@ function calculateAmounts(
     amountOut = transfers[transfers.length - 1]?.value || 0n;
   } else if (isETHOut) {
     const firstTransfer = transfers.find(
-        (t) => t.from.toLowerCase() === swapData.params.path[0].toLowerCase()
+      (t) => t.from.toLowerCase() === swapData.params.path[0].toLowerCase()
     );
     amountIn = firstTransfer?.value || 0n;
     amountOut = transfers[transfers.length - 2]?.value || 0n;
   } else {
     const firstTransfer = transfers.find(
-        (t) => t.from.toLowerCase() === swapData.params.path[0].toLowerCase()
+      (t) => t.from.toLowerCase() === swapData.params.path[0].toLowerCase()
     );
     const lastTransfer = transfers.find(
-        (t) => t.to.toLowerCase() === swapData.params.to.toLowerCase()
+      (t) => t.to.toLowerCase() === swapData.params.to.toLowerCase()
     );
     amountIn = firstTransfer?.value || 0n;
     amountOut = lastTransfer?.value || 0n;
@@ -298,73 +281,87 @@ export function useSwap(): UseMutationResult<SwapResult, Error, SwapParams> {
         throw new Error("Invalid swap path");
       }
 
+      // Validate first pair exists
       const firstPairAddress = await sdk.factory.getPair(
-          swapData.params.path[0],
-          swapData.params.path[1]
+        swapData.params.path[0],
+        swapData.params.path[1]
       );
 
       if (
-          !firstPairAddress ||
-          firstPairAddress === "0x0000000000000000000000000000000000000000"
+        !firstPairAddress ||
+        firstPairAddress === "0x0000000000000000000000000000000000000000"
       ) {
         throw new Error("Pair does not exist");
       }
 
+      // Check for launch token fees if applicable
       let isLaunchToken = false;
       let creator: Address | undefined;
 
       const isETHInput =
-          swapData.type === "exactETHForTokens" ||
-          swapData.type === "ETHForExactTokens";
+        swapData.type === "exactETHForTokens" ||
+        swapData.type === "ETHForExactTokens";
 
       if (!isETHInput) {
         try {
           const launchLauncher = await sdk
-              .getLaunchToken(swapData.params.path[0])
-              .launcher();
+            .getLaunchToken(swapData.params.path[0])
+            .launcher();
           if (launchLauncher === sdk.launcher.address) {
             isLaunchToken = true;
             creator = await sdk
-                .getLaunchToken(swapData.params.path[0])
-                .creator();
+              .getLaunchToken(swapData.params.path[0])
+              .creator();
           }
         } catch {
           // Not a launch token
         }
       }
 
+      // Prepare and simulate transaction
       const functionName = getFunctionName(swapData.type);
       const args = getSwapArgs(swapData);
-
-      const simulationParams = getSimulateParams(sdk, swapData, functionName, args);
-
-      const { request } = await sdk.publicClient.simulateContract(simulationParams);
-
-      const hash = await sdk.walletClient.writeContract(
-          request as WriteContractParameters
+      const simulationParams = getSimulateParams(
+        sdk,
+        swapData,
+        functionName,
+        args
       );
 
+      const { request } = await sdk.publicClient.simulateContract(
+        simulationParams
+      );
+
+      // Execute swap
+      const hash = await sdk.walletClient.writeContract(
+        request as WriteContractParameters
+      );
+
+      // Wait for confirmation and decode events
       const receipt = await sdk.publicClient.waitForTransactionReceipt({
         hash,
         confirmations: 1,
       });
 
-      const transfers: Array<{ from: Address; to: Address; value: bigint }> = [];
+      const transfers: Array<{ from: Address; to: Address; value: bigint }> =
+        [];
       let finalSwapEvent;
       let creatorFeeTransfer;
 
+      // Process transaction events
       for (const log of receipt.logs) {
         try {
           if (
-              log.topics[0] ===
-              "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+            log.topics[0] ===
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
           ) {
+            // Transfer event
             const decoded = decodeEventLog({
               abi: PAIR_ABI,
               data: log.data,
               topics: log.topics,
               eventName: "Transfer",
-            }) as TransferEvent;
+            });
 
             if (creator && decoded.args.to === creator) {
               creatorFeeTransfer = {
@@ -380,15 +377,16 @@ export function useSwap(): UseMutationResult<SwapResult, Error, SwapParams> {
               value: decoded.args.value,
             });
           } else if (
-              log.topics[0] ===
-              "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
+            log.topics[0] ===
+            "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
           ) {
+            // Swap event
             const decoded = decodeEventLog({
               abi: PAIR_ABI,
               data: log.data,
               topics: log.topics,
               eventName: "Swap",
-            }) as SwapEvent;
+            });
 
             finalSwapEvent = decoded.args;
           }
@@ -397,10 +395,9 @@ export function useSwap(): UseMutationResult<SwapResult, Error, SwapParams> {
         }
       }
 
+      // Calculate final amounts and fees
       const { amountIn, amountOut } = calculateAmounts(swapData, transfers);
-
       const lpFee = (amountIn * (isLaunchToken ? 20n : 30n)) / 10000n;
-      const creatorFee = creatorFeeTransfer?.value;
 
       return {
         hash,
@@ -410,7 +407,7 @@ export function useSwap(): UseMutationResult<SwapResult, Error, SwapParams> {
         },
         fees: {
           lp: lpFee,
-          creator: creatorFee,
+          creator: creatorFeeTransfer?.value,
           recipient: creator,
         },
         events: {
