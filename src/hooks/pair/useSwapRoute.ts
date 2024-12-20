@@ -203,16 +203,14 @@ export function useSwapRoute(
                 );
 
                 let hopFee: bigint;
-                if (isLaunchToken) {
-                  if (isPonderPair) {
-                    hopFee =
-                      (hopAmountIn * (PONDER_LP_FEE + PONDER_CREATOR_FEE)) /
-                      BASIS_POINTS;
-                  } else {
-                    hopFee =
-                      (hopAmountIn * (KUB_LP_FEE + KUB_CREATOR_FEE)) /
-                      BASIS_POINTS;
-                  }
+                if (isPonderPair) {
+                  hopFee =
+                    (hopAmountIn * (PONDER_LP_FEE + PONDER_CREATOR_FEE)) /
+                    BASIS_POINTS;
+                } else if (isLaunchToken) {
+                  hopFee =
+                    (hopAmountIn * (KUB_LP_FEE + KUB_CREATOR_FEE)) /
+                    BASIS_POINTS;
                 } else {
                   hopFee = (hopAmountIn * STANDARD_FEE) / BASIS_POINTS;
                 }
