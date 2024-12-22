@@ -14,13 +14,13 @@ export interface PonderAddresses {
 // Contract addresses for each supported chain
 export const PONDER_ADDRESSES: Record<ChainId, PonderAddresses> = {
   25925: {
-    factory: "0x94bDD617b8859C4913e54F4f4a013CEa1DC23F55",
-    router: "0xA656F7b2163FBB5b1465d904DA938D30984ed4Af",
-    masterChef: "0x269dBa497E65dA4A3cC817ADD6476f5778e171F7",
-    launcher: "0xf4d4fFdF189491bCD8dEBba0D79e5C25347bF3C6",
-    oracle: "0xcEa8c0a96cFbf6189B16837cE6998E938C562b10",
-    kkubUnwrapper: "0x374F741d9e53091D8ADaA43844ac394aDb84180A",
-    ponderToken: "0x5dC2826fEaEd6B1466525a7DC7081ecA201b66E7",
+    factory: "0xc45128D1CF63546D98e3dd28e32572E6e000283e",
+    router: "0xcfd947ed2df2EFc2a3ae84C315782506ebbfC493",
+    masterChef: "0xD7FbDef9ca4d89f580714249Cf57E6BBA61Eea89",
+    launcher: "0xF0a25994A124FbC3381ebbbFa0f9184B36F6EEb9",
+    oracle: "0x814dFD5ECd502fbb11326224E6634c85a0fB575C",
+    kkubUnwrapper: "0x60e004ad624A93B16DD3Cf885E178D418941542f",
+    ponderToken: "0x0E0851B73F9c1C550Bfa2f1f4E857da916aFB149",
   },
 } as const;
 
