@@ -26,43 +26,54 @@ interface UpdateOracleResult {
 
 // Hook for checking oracle status
 export function useOracleStatus(
-  pair: PonderPair,
-  enabled = true
+    pair: PonderPair | undefined,
+    enabled = true
 ): UseQueryResult<OracleStatus> {
   const sdk = usePonderSDK();
 
   return useQuery({
-    queryKey: ["ponder", "oracle", "status", pair.address],
+    queryKey: ["ponder", "oracle", "status", pair?.address],
     queryFn: async () => {
-      // Get the observation count
-      const observationsCount = await sdk.oracle.observationLength(
-        pair.address
-      );
+      if (!pair) {
+        throw new Error("Pair is required");
+      }
 
-      // Get the latest observation
-      const latest = await sdk.oracle.getLatestObservation(pair.address);
-      const lastUpdate = latest ? Number(latest.timestamp) : 0;
+      try {
+        // Get data in parallel for better performance
+        const [observationsCount, latest] = await Promise.all([
+          // Get the observation count
+          sdk.oracle.observationLength(pair.address),
+          // Get the latest observation
+          sdk.oracle.getLatestObservation(pair.address).catch(() => null)
+        ]);
 
-      const now = Math.floor(Date.now() / 1000);
-      const timeSinceUpdate = now - lastUpdate;
+        const lastUpdate = latest ? Number(latest.timestamp) : 0;
+        const now = Math.floor(Date.now() / 1000);
+        const timeSinceUpdate = now - lastUpdate;
 
-      // Oracle needs update if:
-      // 1. No observations yet
-      // 2. More than 30 minutes since last update
-      const needsUpdate = observationsCount === 0n || timeSinceUpdate > 1800;
+        // Oracle needs update if:
+        // 1. No observations yet
+        // 2. More than 30 minutes since last update
+        const needsUpdate = observationsCount === 0n || timeSinceUpdate > 1800;
 
-      // Calculate next update time (30 min intervals)
-      const nextUpdateTime = lastUpdate + 1800;
+        // Calculate next update time (30 min intervals)
+        const nextUpdateTime = lastUpdate + 1800;
 
-      return {
-        lastUpdate,
-        observationsCount,
-        needsUpdate,
-        nextUpdateTime,
-      };
+        return {
+          lastUpdate,
+          observationsCount,
+          needsUpdate,
+          nextUpdateTime,
+        };
+      } catch (error) {
+        console.error("Error fetching oracle status:", error);
+        throw new Error("Failed to fetch oracle status");
+      }
     },
-    enabled,
+    enabled: enabled && !!pair,
     staleTime: 60_000, // 1 minute
+    retry: 2, // Retry failed requests twice
+    refetchInterval: 30_000, // Refetch every 30 seconds
   });
 }
 
