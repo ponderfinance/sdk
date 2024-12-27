@@ -15,6 +15,7 @@ export interface OracleStatus {
   nextUpdateTime: number;
 }
 
+// For useUpdateOracle
 interface UpdateOracleParams {
   pair: PonderPair;
 }
@@ -26,25 +27,25 @@ interface UpdateOracleResult {
 
 // Hook for checking oracle status
 export function useOracleStatus(
-    pair: PonderPair | undefined,
-    enabled = true
+  pairAddress: Address | undefined,
+  enabled = true
 ): UseQueryResult<OracleStatus> {
   const sdk = usePonderSDK();
 
   return useQuery({
-    queryKey: ["ponder", "oracle", "status", pair?.address],
+    queryKey: ["ponder", "oracle", "status", pairAddress],
     queryFn: async () => {
-      if (!pair) {
-        throw new Error("Pair is required");
+      if (!pairAddress) {
+        throw new Error("Pair address is required");
       }
 
       try {
         // Get data in parallel for better performance
         const [observationsCount, latest] = await Promise.all([
           // Get the observation count
-          sdk.oracle.observationLength(pair.address),
+          sdk.oracle.observationLength(pairAddress),
           // Get the latest observation
-          sdk.oracle.getLatestObservation(pair.address).catch(() => null)
+          sdk.oracle.getLatestObservation(pairAddress).catch(() => null),
         ]);
 
         const lastUpdate = latest ? Number(latest.timestamp) : 0;
@@ -70,7 +71,7 @@ export function useOracleStatus(
         throw new Error("Failed to fetch oracle status");
       }
     },
-    enabled: enabled && !!pair,
+    enabled: enabled && !!pairAddress,
     staleTime: 60_000, // 1 minute
     retry: 2, // Retry failed requests twice
     refetchInterval: 30_000, // Refetch every 30 seconds
