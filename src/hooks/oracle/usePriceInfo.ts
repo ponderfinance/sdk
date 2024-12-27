@@ -1,7 +1,6 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { type Address } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
-import { type PonderPair } from "@/contracts/pair";
 
 export interface TokenPrice {
   current: number;
@@ -13,17 +12,17 @@ export interface TokenPrice {
 }
 
 export function usePriceInfo(
-  pair: PonderPair | undefined,
+  pairAddress: Address | undefined,
   tokenIn: Address | undefined,
   enabled = true
 ): UseQueryResult<TokenPrice> {
   const sdk = usePonderSDK();
 
   return useQuery({
-    queryKey: ["ponder", "price", pair?.address, tokenIn],
+    queryKey: ["ponder", "price", pairAddress, tokenIn],
     queryFn: async () => {
-      if (!pair || !tokenIn) {
-        throw new Error("Pair and tokenIn are required");
+      if (!pairAddress || !tokenIn) {
+        throw new Error("Pair address and tokenIn are required");
       }
 
       // Get current TWAP price (30 min)
@@ -33,7 +32,7 @@ export function usePriceInfo(
         const [amount30min, amount24h, amount7d] = await Promise.all([
           // Current price (30 min TWAP)
           sdk.oracle.consult(
-            pair.address,
+            pairAddress,
             tokenIn,
             baseAmount,
             1800 // 30 minutes
@@ -41,7 +40,7 @@ export function usePriceInfo(
           // 24h price
           sdk.oracle
             .consult(
-              pair.address,
+              pairAddress,
               tokenIn,
               baseAmount,
               86400 // 24 hours
@@ -50,7 +49,7 @@ export function usePriceInfo(
           // 7d price
           sdk.oracle
             .consult(
-              pair.address,
+              pairAddress,
               tokenIn,
               baseAmount,
               604800 // 7 days
@@ -94,7 +93,8 @@ export function usePriceInfo(
         throw error;
       }
     },
-    enabled: enabled && !!pair && !!tokenIn,
+    enabled: enabled && !!pairAddress && !!tokenIn,
     staleTime: 30_000, // 30 seconds
+    retry: 2, // Retry failed requests twice
   });
 }
