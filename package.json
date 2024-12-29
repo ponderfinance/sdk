@@ -1,6 +1,6 @@
 {
   "name": "@ponderfinance/sdk",
-  "version": "0.1.55",
+  "version": "0.1.56",
   "description": "SDK for interacting with Ponder DEX",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
