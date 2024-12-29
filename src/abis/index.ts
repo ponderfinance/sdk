@@ -5,7 +5,7 @@ import {
     pondermasterchefAbi,
     ponderpairAbi,
     fivefivefivelauncherAbi,
-    launchtokenAbi
+    launchtokenAbi,
 } from '@ponderfinance/dex'
 
 import type {

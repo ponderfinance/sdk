@@ -9,6 +9,8 @@ export interface PonderAddresses {
   oracle: Address;
   kkubUnwrapper: Address;
   ponderToken: Address;
+  staking: Address;
+  feeDistributor: Address;
 }
 
 // Contract addresses for each supported chain
@@ -21,6 +23,9 @@ export const PONDER_ADDRESSES: Record<ChainId, PonderAddresses> = {
     oracle: "0x1240580515A6D4055F528F61074876F632006208",
     kkubUnwrapper: "0xfB9a3dBe054B6c3C9c8B38ccDF35F369c05459fA",
     ponderToken: "0x394c708B7Bd536C9961EA1748389F5bBDE3b480D",
+    staking: "0xDf8B7Df70EDB112B1dAaF9029283218011502714",
+    feeDistributor: "0xbFb28F44b82686a5E4C48e7f77441e8728b6Aa9A"
+
   },
 } as const;
 

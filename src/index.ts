@@ -38,6 +38,8 @@ import {
   KKUBUnwrapper,
   type PonderKKUBUnwrapper,
 } from "./contracts/kkubunwrapper";
+import { Staking, type PonderStaking } from "./contracts/staking";
+import { FeeDistributor, type PonderFeeDistributor } from "./contracts/feedistributor";
 import { PONDER_ADDRESSES } from "@/constants/addresses";
 
 interface SDKConfig {
@@ -60,6 +62,8 @@ export class PonderSDK {
   private _pairs: Map<Address, Pair>;
   private _launchTokens: Map<Address, LaunchToken>;
   private _ponder: Pondertoken;
+  private _staking: Staking;
+  private _feeDistributor: FeeDistributor;
 
   constructor({ chainId, publicClient, walletClient }: SDKConfig) {
     this.chainId = chainId;
@@ -109,6 +113,16 @@ export class PonderSDK {
       this.publicClient,
       this._walletClient
     );
+    this._staking = new Staking(
+        this.chainId,
+        this.publicClient,
+        this._walletClient
+    );
+    this._feeDistributor = new FeeDistributor(
+        this.chainId,
+        this.publicClient,
+        this._walletClient
+    );
     this._pairs = new Map();
     this._launchTokens = new Map();
   }
@@ -139,6 +153,14 @@ export class PonderSDK {
 
   get ponder(): Pondertoken {
     return this._ponder;
+  }
+
+  get staking(): Staking {
+    return this._staking;
+  }
+
+  get feeDistributor(): FeeDistributor {
+    return this._feeDistributor;
   }
 
   get walletClient(): WalletClient | undefined {
@@ -203,6 +225,16 @@ export class PonderSDK {
       this.publicClient,
       walletClient
     );
+    this._staking = new Staking(
+        this.chainId,
+        this.publicClient,
+        walletClient
+    );
+    this._feeDistributor = new FeeDistributor(
+        this.chainId,
+        this.publicClient,
+        walletClient
+    );
 
     // Update existing instances
     for (const [address, _] of this._pairs) {
@@ -247,6 +279,8 @@ export { PriceOracle, type PonderPriceOracle };
 export { KKUBUnwrapper, type PonderKKUBUnwrapper };
 export { Pondertoken };
 export type { PonderToken } from "./contracts/pondertoken";
+export { Staking, type PonderStaking };
+export { FeeDistributor, type PonderFeeDistributor };
 
 // Type exports
 export type { SDKConfig as PonderSDKConfig };
@@ -376,3 +410,15 @@ export {
   type TransactionStatus,
 } from "./hooks/token/useTransaction";
 export { useGasEstimate, type GasEstimate } from "./hooks/trade/useGasEstimate";
+
+// Add new Staking hooks exports
+export { useStakingInfo, type StakingInfo } from "./hooks/staking/useStakingInfo";
+export { useStakePonder } from "./hooks/staking/useStakePonder";
+export { useUnstakePonder } from "./hooks/staking/useUnstakePonder";
+export { useStakingStats, type StakingStats } from "./hooks/staking/useStakingStats";
+
+// Add new Fee Distributor hooks exports
+export { useFeeDistributorInfo, type FeeDistributorInfo } from "./hooks/fees/useFeeDistributorInfo";
+export { useDistributeFees } from "./hooks/fees/useDistributeFees";
+export { useCollectFees } from "./hooks/fees/useCollectFees";
+export { useFeeMetrics, type FeeMetrics } from "./hooks/fees/useFeeMetrics";

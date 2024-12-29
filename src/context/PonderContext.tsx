@@ -9,7 +9,7 @@ export function PonderProvider({
   children,
   queryClient,
 }: {
-  sdk: PonderSDK;
+  sdk: PonderSDK | undefined;
   children: ReactNode;
   queryClient: QueryClient;
 }) {
