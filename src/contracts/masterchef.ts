@@ -11,6 +11,7 @@ export interface PoolInfo {
     lastRewardTime: bigint
     accPonderPerShare: bigint
     totalStaked: bigint
+    totalWeightedShares: bigint
     depositFeeBP: number
     boostMultiplier: number
 }
@@ -88,14 +89,15 @@ export class MasterChef {
             lastRewardTime,
             accPonderPerShare,
             totalStaked,
+            totalWeightedShares,
             depositFeeBP,
-            boostMultiplier
+            boostMultiplier,
         ] = await this.publicClient.readContract({
             address: this.address,
             abi: MASTERCHEF_ABI,
             functionName: 'poolInfo',
             args: [pid]
-        }) as readonly [Address, bigint, bigint, bigint, bigint, number, number]
+        }) as readonly [Address, bigint, bigint, bigint, bigint, bigint, number, number]
 
         return {
             lpToken,
@@ -103,6 +105,7 @@ export class MasterChef {
             lastRewardTime,
             accPonderPerShare,
             totalStaked,
+            totalWeightedShares,
             depositFeeBP,
             boostMultiplier
         }
@@ -114,7 +117,7 @@ export class MasterChef {
             abi: MASTERCHEF_ABI,
             functionName: 'userInfo',
             args: [pid, user]
-        }) as readonly [bigint, bigint, bigint]
+        }) as readonly [bigint, bigint, bigint, bigint]
 
         return {
             amount,

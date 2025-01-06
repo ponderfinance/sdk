@@ -14,7 +14,6 @@ export interface FeeMetrics {
   // Distribution metrics
   totalDistributed: {
     staking: bigint;
-    treasury: bigint;
     team: bigint;
     total: bigint;
   };
@@ -174,15 +173,14 @@ export function useFeeMetrics(enabled = true) {
 
       // Calculate total distributions
       const totalDistributed = monthlyMetrics.volume;
-      const { stakingRatio, treasuryRatio, teamRatio } =
+      const { stakingRatio, teamRatio } =
         await sdk.feeDistributor.getDistributionRatios();
 
-      const denominator = stakingRatio + treasuryRatio + teamRatio;
+      const denominator = stakingRatio + teamRatio;
 
       return {
         totalDistributed: {
           staking: (totalDistributed * stakingRatio) / denominator,
-          treasury: (totalDistributed * treasuryRatio) / denominator,
           team: (totalDistributed * teamRatio) / denominator,
           total: totalDistributed,
         },

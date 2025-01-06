@@ -13,7 +13,6 @@ import { PONDER_ADDRESSES } from "@/constants/addresses";
 
 export interface DistributionRatios {
   stakingRatio: bigint;
-  treasuryRatio: bigint;
   teamRatio: bigint;
 }
 
@@ -45,26 +44,15 @@ export class FeeDistributor {
       functionName: "getDistributionRatios",
     });
 
-    const [stakingRatio, treasuryRatio, teamRatio] = result as [
-      bigint,
+    const [stakingRatio, teamRatio] = result as [
       bigint,
       bigint
     ];
 
     return {
       stakingRatio,
-      treasuryRatio,
       teamRatio,
     };
-  }
-
-  async treasury(): Promise<Address> {
-    const result = await this.publicClient.readContract({
-      address: this.address,
-      abi: this.abi,
-      functionName: "treasury",
-    });
-    return result as Address;
   }
 
   async team(): Promise<Address> {
@@ -143,7 +131,6 @@ export class FeeDistributor {
 
   async updateDistributionRatios(
     stakingRatio: bigint,
-    treasuryRatio: bigint,
     teamRatio: bigint
   ): Promise<Hash> {
     if (!this.walletClient?.account) throw new Error("Wallet client required");
@@ -152,21 +139,7 @@ export class FeeDistributor {
       address: this.address,
       abi: this.abi,
       functionName: "updateDistributionRatios",
-      args: [stakingRatio, treasuryRatio, teamRatio],
-      account: this.walletClient.account.address,
-    });
-
-    return this.walletClient.writeContract(request as WriteContractParameters);
-  }
-
-  async setTreasury(treasury: Address): Promise<Hash> {
-    if (!this.walletClient?.account) throw new Error("Wallet client required");
-
-    const { request } = await this.publicClient.simulateContract({
-      address: this.address,
-      abi: this.abi,
-      functionName: "setTreasury",
-      args: [treasury],
+      args: [stakingRatio, teamRatio],
       account: this.walletClient.account.address,
     });
 

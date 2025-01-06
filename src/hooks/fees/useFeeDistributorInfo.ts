@@ -11,9 +11,7 @@ export interface TokenFeesInfo {
 
 export interface FeeDistributorInfo {
   stakingRatio: bigint;
-  treasuryRatio: bigint;
   teamRatio: bigint;
-  treasury: Address;
   team: Address;
   pendingFees: {
     ponder: bigint;
@@ -33,9 +31,8 @@ export function useFeeDistributorInfo(enabled = true) {
     queryKey: ["feeDistributorInfo"],
     queryFn: async (): Promise<FeeDistributorInfo> => {
       // Get current distribution ratios
-      const [ratios, treasuryAddress, teamAddress] = await Promise.all([
+      const [ratios, teamAddress] = await Promise.all([
         sdk.feeDistributor.getDistributionRatios(),
-        sdk.feeDistributor.treasury(),
         sdk.feeDistributor.team(),
       ]);
 
@@ -86,9 +83,7 @@ export function useFeeDistributorInfo(enabled = true) {
 
       return {
         stakingRatio: ratios.stakingRatio,
-        treasuryRatio: ratios.treasuryRatio,
         teamRatio: ratios.teamRatio,
-        treasury: treasuryAddress,
         team: teamAddress,
         pendingFees: {
           ponder: ponderBalance,
