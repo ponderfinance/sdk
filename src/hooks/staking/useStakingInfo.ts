@@ -30,7 +30,7 @@ export function useStakingInfo(address?: Address) {
       // Calculate exchange rate with 18 decimals precision
       const exchangeRate =
           totalSupply > 0n
-              ? Number((ponderBalance * 10000n) / totalSupply) / 10000
+              ? Number((ponderBalance * BigInt(1e18)) / totalSupply) / 1e18
               : 1;
 
       // Calculate user's equivalent PONDER balance

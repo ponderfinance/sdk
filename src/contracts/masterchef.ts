@@ -151,14 +151,6 @@ export class MasterChef {
         })
     }
 
-    async treasury(): Promise<Address> {
-        return this.publicClient.readContract({
-            address: this.address,
-            abi: MASTERCHEF_ABI,
-            functionName: 'treasury'
-        })
-    }
-
     async owner(): Promise<Address> {
         return this.publicClient.readContract({
             address: this.address,
