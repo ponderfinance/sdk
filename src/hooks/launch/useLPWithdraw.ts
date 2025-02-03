@@ -20,12 +20,10 @@ interface LPWithdrawParams {
 
 interface LPWithdrawResult {
   hash: Hash;
-  amount: bigint;
   events: {
     lpWithdrawn?: {
       launchId: bigint;
       creator: Address;
-      amount: bigint;
     };
   };
 }
@@ -198,13 +196,11 @@ export function useLPWithdraw(): UseMutationResult<
         events.lpWithdrawn = {
           launchId: decoded.args.launchId,
           creator: decoded.args.creator,
-          amount: decoded.args.amount,
         };
       }
 
       return {
         hash,
-        amount: events.lpWithdrawn?.amount || 0n,
         events,
       };
     },
