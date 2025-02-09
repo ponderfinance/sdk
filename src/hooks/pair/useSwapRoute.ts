@@ -99,25 +99,20 @@ export function useSwapRoute(
           let actualAmountIn: bigint;
 
           if (amountIn) {
-            // For exact input, let router handle the 0.3% fee
-            amountOutWithFees = await sdk.router.getAmountOut(
-              amountIn, // Use full amount - router handles fee
-              reserveIn,
-              reserveOut
-            );
+            // For exact input, let router handle the fee
+            const path: `0x${string}`[] = [tokenIn, tokenOut];
+            const amounts = await sdk.router.getAmountsOut(amountIn, path);
+            amountOutWithFees = amounts[1]; // Get the output amount
             actualAmountIn = amountIn;
           } else if (amountOut) {
             // For exact output, let router calculate required input
-            actualAmountIn = await sdk.router.getAmountIn(
-              amountOut,
-              reserveIn,
-              reserveOut
-            );
+            const path: `0x${string}`[] = [tokenIn, tokenOut];
+            const amounts = await sdk.router.getAmountsIn(amountOut, path);
+            actualAmountIn = amounts[0]; // Get the input amount
             amountOutWithFees = amountOut;
           } else {
             throw new Error("Either amountIn or amountOut must be provided");
           }
-
           // Calculate fee amount for display - separate from swap calculations
           const feeAmount = (actualAmountIn * totalFee) / BASIS_POINTS;
 

@@ -94,10 +94,7 @@ async function getLaunchTokenVesting(
       ? undefined
       : vestingInfo.start + ((now - vestingInfo.start) / 86400n + 1n) * 86400n;
 
-  const [creator, creatorFees] = await Promise.all([
-    token.creator(),
-    token.creatorFee(),
-  ]);
+  const [creator] = await Promise.all([token.creator()]);
 
   return {
     totalVested: vestingInfo.total,
@@ -118,7 +115,6 @@ async function getLaunchTokenVesting(
     isFullyClaimed: vestingInfo.claimed >= vestingInfo.total,
     dailyVestingRate: dailyRate,
     creator,
-    creatorFees,
   };
 }
 
