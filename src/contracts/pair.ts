@@ -64,7 +64,7 @@ export class Pair {
     return this.publicClient.readContract({
       address: this.address,
       abi: PAIR_ABI,
-      functionName: "MINIMUM_LIQUIDITY",
+      functionName: "minimumLiquidity",
     });
   }
 

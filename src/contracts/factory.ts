@@ -82,22 +82,6 @@ export class Factory {
         })
     }
 
-    async migrator(): Promise<Address> {
-        return this.publicClient.readContract({
-            address: this.address,
-            abi: FACTORY_ABI,
-            functionName: 'migrator'
-        })
-    }
-
-    // Read Constants
-    async INIT_CODE_PAIR_HASH(): Promise<string> {
-        return this.publicClient.readContract({
-            address: this.address,
-            abi: FACTORY_ABI,
-            functionName: 'INIT_CODE_PAIR_HASH'
-        })
-    }
 
     // Write Methods
 

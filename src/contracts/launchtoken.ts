@@ -102,7 +102,7 @@ export class LaunchToken {
     return this.publicClient.readContract({
       address: this.address,
       abi: launchtokenAbi,
-      functionName: "factory",
+      functionName: "FACTORY",
     });
   }
 
@@ -110,7 +110,7 @@ export class LaunchToken {
     return this.publicClient.readContract({
       address: this.address,
       abi: launchtokenAbi,
-      functionName: "router",
+      functionName: "ROUTER",
     });
   }
 
@@ -158,24 +158,8 @@ export class LaunchToken {
     return this.publicClient.readContract({
       address: this.address,
       abi: launchtokenAbi,
-      functionName: "TOTAL_SUPPLY",
+      functionName: "totalSupply",
     });
-  }
-
-  async VESTING_DURATION(): Promise<bigint> {
-    return this.publicClient.readContract({
-      address: this.address,
-      abi: launchtokenAbi,
-      functionName: "VESTING_DURATION",
-    });
-  }
-
-  async creatorFee(): Promise<bigint> {
-    return this.publicClient.readContract({
-      address: this.address,
-      abi: launchtokenAbi,
-      functionName: "PONDER_CREATOR_FEE",
-    }) as Promise<bigint>;
   }
 
   async getVestingInfo(): Promise<VestingInfo> {

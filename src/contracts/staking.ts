@@ -37,7 +37,7 @@ export class Staking {
     return this.publicClient.readContract({
       address: this.address,
       abi: this.abi,
-      functionName: "ponder",
+      functionName: "PONDER",
     });
   }
 

@@ -22,7 +22,7 @@
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@ponderfinance/dex": "^1.0.0",
+    "@ponderfinance/dex": "^1.0.1",
     "@tanstack/react-query": "^5.62.2",
     "react-query": "^3.39.3",
     "viem": "^2.21.51",

@@ -54,7 +54,7 @@ export class MasterChef {
         return this.publicClient.readContract({
             address: this.address,
             abi: MASTERCHEF_ABI,
-            functionName: 'ponder'
+            functionName: 'PONDER'
         })
     }
 
@@ -62,7 +62,7 @@ export class MasterChef {
         return this.publicClient.readContract({
             address: this.address,
             abi: MASTERCHEF_ABI,
-            functionName: 'factory'
+            functionName: 'FACTORY'
         })
     }
 
@@ -82,33 +82,22 @@ export class MasterChef {
         })
     }
 
-    async poolInfo(pid: bigint): Promise<PoolInfo> {
-        const [
-            lpToken,
-            allocPoint,
-            lastRewardTime,
-            accPonderPerShare,
-            totalStaked,
-            totalWeightedShares,
-            depositFeeBP,
-            boostMultiplier,
-        ] = await this.publicClient.readContract({
+    async poolInfo(pid: bigint): Promise<{
+        lpToken: Address,
+        allocPoint: bigint,
+        lastRewardTime: bigint,
+        accPonderPerShare: bigint,
+        totalStaked: bigint,
+        totalWeightedShares: bigint,
+        depositFeeBP: number,
+        boostMultiplier: number
+    }> {
+        return this.publicClient.readContract({
             address: this.address,
             abi: MASTERCHEF_ABI,
             functionName: 'poolInfo',
             args: [pid]
-        }) as readonly [Address, bigint, bigint, bigint, bigint, bigint, number, number]
-
-        return {
-            lpToken,
-            allocPoint,
-            lastRewardTime,
-            accPonderPerShare,
-            totalStaked,
-            totalWeightedShares,
-            depositFeeBP,
-            boostMultiplier
-        }
+        })
     }
 
     async userInfo(pid: bigint, user: Address): Promise<UserInfo> {

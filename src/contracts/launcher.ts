@@ -112,7 +112,7 @@ export class FiveFiveFiveLauncher {
     return this.publicClient.readContract({
       address: this.address,
       abi: fivefivefivelauncherAbi,
-      functionName: "factory",
+      functionName: "FACTORY",
     });
   }
 
@@ -120,7 +120,7 @@ export class FiveFiveFiveLauncher {
     return this.publicClient.readContract({
       address: this.address,
       abi: fivefivefivelauncherAbi,
-      functionName: "router",
+      functionName: "ROUTER",
     });
   }
 
@@ -216,17 +216,17 @@ export class FiveFiveFiveLauncher {
     ]);
 
     try {
-      const WETH = (await this.publicClient.readContract({
+      const KKUB = (await this.publicClient.readContract({
         address: routerAddress,
         abi: ponderrouterAbi,
-        functionName: "WETH",
+        functionName: "KKUB",
       })) as Address;
 
       const ponderPair = (await this.publicClient.readContract({
         address: factoryAddress,
         abi: ponderfactoryAbi,
         functionName: "getPair",
-        args: [PONDER_ADDRESSES[this.chainId].ponderToken, WETH],
+        args: [PONDER_ADDRESSES[this.chainId].ponderToken, KKUB],
       })) as Address;
 
       // Use TARGET_RAISE constant from the class
@@ -234,7 +234,7 @@ export class FiveFiveFiveLauncher {
         address: PONDER_ADDRESSES[this.chainId].oracle,
         abi: ponderpriceoracleAbi,
         functionName: "consult",
-        args: [ponderPair, WETH, this.TARGET_RAISE, Number(24 * 60 * 60)],
+        args: [ponderPair, KKUB, this.TARGET_RAISE, Number(24 * 60 * 60)],
       })) as bigint;
 
       return {

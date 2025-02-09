@@ -84,7 +84,7 @@ export class Router {
         return this.publicClient.readContract({
             address: this.address,
             abi: ROUTER_ABI,
-            functionName: 'factory'
+            functionName: 'FACTORY'
         })
     }
 
@@ -92,25 +92,25 @@ export class Router {
         return this.publicClient.readContract({
             address: this.address,
             abi: ROUTER_ABI,
-            functionName: 'WETH'
+            functionName: 'kkub'
         })
     }
 
-    async getAmountOut(amountIn: bigint, reserveIn: bigint, reserveOut: bigint): Promise<bigint> {
+    async getAmountOut(amountIn: bigint, path: readonly `0x${string}`[]): Promise<readonly bigint[]> {
         return this.publicClient.readContract({
             address: this.address,
             abi: ROUTER_ABI,
-            functionName: 'getAmountOut',
-            args: [amountIn, reserveIn, reserveOut]
+            functionName: 'getAmountsOut',
+            args: [amountIn, path]
         })
     }
 
-    async getAmountIn(amountOut: bigint, reserveIn: bigint, reserveOut: bigint): Promise<bigint> {
+    async getAmountIn(amountOut: bigint, path: readonly `0x${string}`[]): Promise<readonly bigint[]> {
         return this.publicClient.readContract({
             address: this.address,
             abi: ROUTER_ABI,
-            functionName: 'getAmountIn',
-            args: [amountOut, reserveIn, reserveOut]
+            functionName: 'getAmountsIn',
+            args: [amountOut, path]
         })
     }
 
