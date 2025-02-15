@@ -11,11 +11,6 @@ import { type SupportedChainId } from "@/constants/chains";
 import { getChainFromId } from "@/constants/chains";
 import { PONDER_ADDRESSES } from "@/constants/addresses";
 
-export interface DistributionRatios {
-  stakingRatio: bigint;
-  teamRatio: bigint;
-}
-
 export class FeeDistributor {
   public readonly chainId: SupportedChainId;
   public readonly address: Address;
@@ -25,9 +20,9 @@ export class FeeDistributor {
   private readonly walletClient?: WalletClient;
 
   constructor(
-    chainId: SupportedChainId,
-    publicClient: PublicClient,
-    walletClient?: WalletClient
+      chainId: SupportedChainId,
+      publicClient: PublicClient,
+      walletClient?: WalletClient
   ) {
     this.chainId = chainId;
     this.chain = getChainFromId(chainId);
@@ -37,31 +32,22 @@ export class FeeDistributor {
   }
 
   // Read Methods
-  async getDistributionRatios(): Promise<DistributionRatios> {
+  async minimumAmount(): Promise<bigint> {
     const result = await this.publicClient.readContract({
       address: this.address,
       abi: this.abi,
-      functionName: "getDistributionRatios",
+      functionName: "minimumAmount",
     });
-
-    const [stakingRatio, teamRatio] = result as [
-      bigint,
-      bigint
-    ];
-
-    return {
-      stakingRatio,
-      teamRatio,
-    };
+    return result as bigint;
   }
 
-  async team(): Promise<Address> {
+  async lastDistributionTimestamp(): Promise<bigint> {
     const result = await this.publicClient.readContract({
       address: this.address,
       abi: this.abi,
-      functionName: "team",
+      functionName: "lastDistributionTimestamp",
     });
-    return result as Address;
+    return result as bigint;
   }
 
   async owner(): Promise<Address> {
@@ -69,6 +55,15 @@ export class FeeDistributor {
       address: this.address,
       abi: this.abi,
       functionName: "owner",
+    });
+    return result as Address;
+  }
+
+  async pendingOwner(): Promise<Address> {
+    const result = await this.publicClient.readContract({
+      address: this.address,
+      abi: this.abi,
+      functionName: "pendingOwner",
     });
     return result as Address;
   }
@@ -129,31 +124,18 @@ export class FeeDistributor {
     return this.walletClient.writeContract(request as WriteContractParameters);
   }
 
-  async updateDistributionRatios(
-    stakingRatio: bigint,
-    teamRatio: bigint
+  async emergencyTokenRecover(
+      token: Address,
+      to: Address,
+      amount: bigint
   ): Promise<Hash> {
     if (!this.walletClient?.account) throw new Error("Wallet client required");
 
     const { request } = await this.publicClient.simulateContract({
       address: this.address,
       abi: this.abi,
-      functionName: "updateDistributionRatios",
-      args: [stakingRatio, teamRatio],
-      account: this.walletClient.account.address,
-    });
-
-    return this.walletClient.writeContract(request as WriteContractParameters);
-  }
-
-  async setTeam(team: Address): Promise<Hash> {
-    if (!this.walletClient?.account) throw new Error("Wallet client required");
-
-    const { request } = await this.publicClient.simulateContract({
-      address: this.address,
-      abi: this.abi,
-      functionName: "setTeam",
-      args: [team],
+      functionName: "emergencyTokenRecover",
+      args: [token, to, amount],
       account: this.walletClient.account.address,
     });
 

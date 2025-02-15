@@ -6,6 +6,7 @@ import {
     ponderpairAbi,
     fivefivefivelauncherAbi,
     launchtokenAbi,
+    ponderstakingAbi
 } from '@ponderfinance/dex'
 
 import type {
@@ -33,5 +34,6 @@ export {
     launchtokenAbi as LAUNCH_TOKEN_ABI,
     ponderfactoryAbi as FACTORY_ABI,
     pondermasterchefAbi as MASTERCHEF_ABI,
-    ponderpairAbi as PAIR_ABI
+    ponderpairAbi as PAIR_ABI,
+    ponderstakingAbi as STAKING_ABI
 }

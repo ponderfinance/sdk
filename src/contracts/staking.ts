@@ -1,4 +1,3 @@
-// src/contracts/staking.ts
 import {
   type PublicClient,
   type WalletClient,
@@ -21,9 +20,9 @@ export class Staking {
   private readonly walletClient?: WalletClient;
 
   constructor(
-    chainId: SupportedChainId,
-    publicClient: PublicClient,
-    walletClient?: WalletClient
+      chainId: SupportedChainId,
+      publicClient: PublicClient,
+      walletClient?: WalletClient
   ) {
     this.chainId = chainId;
     this.chain = getChainFromId(chainId);
@@ -33,11 +32,19 @@ export class Staking {
   }
 
   // Read Methods
-  async ponder(): Promise<Address> {
+  async PONDER(): Promise<Address> {
     return this.publicClient.readContract({
       address: this.address,
       abi: this.abi,
       functionName: "PONDER",
+    });
+  }
+
+  async minimumFirstStake(): Promise<bigint> {
+    return this.publicClient.readContract({
+      address: this.address,
+      abi: this.abi,
+      functionName: "minimumFirstStake",
     });
   }
 
@@ -66,6 +73,22 @@ export class Staking {
     });
   }
 
+  async owner(): Promise<Address> {
+    return this.publicClient.readContract({
+      address: this.address,
+      abi: this.abi,
+      functionName: "owner",
+    });
+  }
+
+  async pendingOwner(): Promise<Address> {
+    return this.publicClient.readContract({
+      address: this.address,
+      abi: this.abi,
+      functionName: "pendingOwner",
+    });
+  }
+
   async getPonderAmount(shares: bigint): Promise<bigint> {
     return this.publicClient.readContract({
       address: this.address,
@@ -85,14 +108,14 @@ export class Staking {
   }
 
   // Write Methods
-  async enter(amount: bigint): Promise<Hash> {
+  async enter(amount: bigint, recipient: Address): Promise<Hash> {
     if (!this.walletClient?.account) throw new Error("Wallet client required");
 
     const { request } = await this.publicClient.simulateContract({
       address: this.address,
       abi: this.abi,
       functionName: "enter",
-      args: [amount],
+      args: [amount, recipient],
       account: this.walletClient.account.address,
     });
 
@@ -120,6 +143,33 @@ export class Staking {
       address: this.address,
       abi: this.abi,
       functionName: "rebase",
+      account: this.walletClient.account.address,
+    });
+
+    return this.walletClient.writeContract(request as WriteContractParameters);
+  }
+
+  async transferOwnership(newOwner: Address): Promise<Hash> {
+    if (!this.walletClient?.account) throw new Error("Wallet client required");
+
+    const { request } = await this.publicClient.simulateContract({
+      address: this.address,
+      abi: this.abi,
+      functionName: "transferOwnership",
+      args: [newOwner],
+      account: this.walletClient.account.address,
+    });
+
+    return this.walletClient.writeContract(request as WriteContractParameters);
+  }
+
+  async acceptOwnership(): Promise<Hash> {
+    if (!this.walletClient?.account) throw new Error("Wallet client required");
+
+    const { request } = await this.publicClient.simulateContract({
+      address: this.address,
+      abi: this.abi,
+      functionName: "acceptOwnership",
       account: this.walletClient.account.address,
     });
 

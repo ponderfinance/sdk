@@ -4,12 +4,7 @@ import {
   type UseMutationResult,
   type UseQueryResult,
 } from "@tanstack/react-query";
-import {
-  type Address,
-  type Hash,
-  decodeEventLog,
-  type WriteContractParameters,
-} from "viem";
+import { type Address, type Hash, type WriteContractParameters } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { TOKEN_ABI } from "@/abis";
 import { bitkubTestnetChain } from "@/constants/chains";
@@ -75,7 +70,6 @@ export function usePonderToken(
   vesting: UseQueryResult<TokenVesting>;
   burnStats: UseQueryResult<BurnStats>;
   mintRights: UseQueryResult<MintRights>;
-  claimTeamTokens: UseMutationResult<Hash, Error, void>;
   burn: UseMutationResult<Hash, Error, BurnParams>;
   setMinter: UseMutationResult<Hash, Error, SetMinterParams>;
   transferOwnership: UseMutationResult<Hash, Error, TransferOwnershipParams>;
@@ -200,24 +194,6 @@ export function usePonderToken(
     staleTime: 30_000,
   });
 
-  // Claim team tokens mutation
-  const claimTeamTokens = useMutation({
-    mutationFn: async () => {
-      if (!sdk.walletClient?.account) throw new Error("Wallet not connected");
-
-      const { request } = await sdk.publicClient.simulateContract({
-        address: sdk.ponder.address,
-        abi: TOKEN_ABI,
-        functionName: "claimTeamTokens",
-        args: [],
-        account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
-      });
-
-      return sdk.walletClient.writeContract(request as WriteContractParameters);
-    },
-  });
-
   // Burn tokens mutation
   const burn = useMutation({
     mutationFn: async ({ amount }: BurnParams) => {
@@ -294,7 +270,6 @@ export function usePonderToken(
     vesting,
     burnStats,
     mintRights,
-    claimTeamTokens,
     burn,
     setMinter,
     transferOwnership,

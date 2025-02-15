@@ -11,12 +11,8 @@ export interface TokenMetrics {
 }
 
 export interface FeeMetrics {
-  // Distribution metrics
-  totalDistributed: {
-    staking: bigint;
-    team: bigint;
-    total: bigint;
-  };
+  // Overall metrics
+  totalDistributed: bigint;
   // Time-based metrics
   daily: {
     distributions: number;
@@ -49,27 +45,130 @@ async function getTimeRangeMetrics(
   sdk: ReturnType<typeof usePonderSDK>,
   startTime: bigint
 ) {
-  const events = await sdk.publicClient.getContractEvents({
-    address: sdk.feeDistributor.address,
-    abi: sdk.feeDistributor.abi,
-    eventName: "FeesDistributed",
-    fromBlock: startTime,
-  });
+  try {
+    const events = await sdk.publicClient.getContractEvents({
+      address: sdk.feeDistributor.address,
+      abi: sdk.feeDistributor.abi,
+      eventName: "FeesDistributed",
+      fromBlock: startTime,
+    });
 
-  let totalVolume = 0n;
-  const distributions = events.length;
+    let totalVolume = 0n;
+    const distributions = events.length;
 
-  for (const event of events) {
-    const amount = (event.args?.totalAmount as bigint) || 0n;
-    totalVolume += amount;
+    for (const event of events) {
+      const amount = (event.args?.totalAmount as bigint) || 0n;
+      totalVolume += amount;
+    }
+
+    return {
+      distributions,
+      volume: totalVolume,
+      avgDistributionSize:
+        distributions > 0 ? totalVolume / BigInt(distributions) : 0n,
+    };
+  } catch (error) {
+    console.error("Error fetching time range metrics:", error);
+    return {
+      distributions: 0,
+      volume: 0n,
+      avgDistributionSize: 0n,
+    };
   }
+}
 
-  return {
-    distributions,
-    volume: totalVolume,
-    avgDistributionSize:
-      distributions > 0 ? totalVolume / BigInt(distributions) : 0n,
-  };
+async function getTokenMetrics(
+  sdk: ReturnType<typeof usePonderSDK>,
+  fromBlock: bigint
+): Promise<TokenMetrics[]> {
+  try {
+    // Get all fee collection events
+    const collectionEvents = await sdk.publicClient.getContractEvents({
+      address: sdk.feeDistributor.address,
+      abi: sdk.feeDistributor.abi,
+      eventName: "FeesCollected",
+      fromBlock,
+    });
+
+    // Get all conversion events
+    const conversionEvents = await sdk.publicClient.getContractEvents({
+      address: sdk.feeDistributor.address,
+      abi: sdk.feeDistributor.abi,
+      eventName: "FeesConverted",
+      fromBlock,
+    });
+
+    // Track unique tokens
+    const tokenMap = new Map<Address, TokenMetrics>();
+
+    // Process collection events
+    for (const event of collectionEvents) {
+      const token = event.args?.token as Address;
+      const amount = (event.args?.amount as bigint) || 0n;
+
+      if (!tokenMap.has(token)) {
+        const symbol = await sdk.publicClient.readContract({
+          address: token,
+          abi: ["function symbol() view returns (string)"] as const,
+          functionName: "symbol",
+        });
+
+        tokenMap.set(token, {
+          token,
+          symbol: symbol as string,
+          totalCollected: 0n,
+          totalConverted: 0n,
+          valueInKUB: 0n,
+        });
+      }
+
+      const metrics = tokenMap.get(token)!;
+      metrics.totalCollected += amount;
+    }
+
+    // Process conversion events
+    for (const event of conversionEvents) {
+      const token = event.args?.token as Address;
+      const amount = (event.args?.tokenAmount as bigint) || 0n;
+
+      if (tokenMap.has(token)) {
+        const metrics = tokenMap.get(token)!;
+        metrics.totalConverted += amount;
+      }
+    }
+
+    // Calculate KUB values
+    const weth = await sdk.router.WETH();
+    const promises = Array.from(tokenMap.values()).map(async (metrics) => {
+      try {
+        const pair = await sdk.factory.getPair(metrics.token, weth);
+        if (pair) {
+          const pairContract = sdk.getPair(pair);
+          const [token0, reserves] = await Promise.all([
+            pairContract.token0(),
+            pairContract.getReserves(),
+          ]);
+
+          const isToken0 = metrics.token.toLowerCase() === token0.toLowerCase();
+          const tokenReserve = isToken0 ? reserves.reserve0 : reserves.reserve1;
+          const kubReserve = isToken0 ? reserves.reserve1 : reserves.reserve0;
+
+          if (tokenReserve > 0n) {
+            metrics.valueInKUB =
+              (metrics.totalCollected * kubReserve) / tokenReserve;
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to get KUB value for ${metrics.symbol}:`, error);
+      }
+      return metrics;
+    });
+
+    return Promise.all(promises);
+  } catch (error) {
+    console.error("Error fetching token metrics:", error);
+    return [];
+  }
 }
 
 export function useFeeMetrics(enabled = true) {
@@ -90,100 +189,11 @@ export function useFeeMetrics(enabled = true) {
         getTimeRangeMetrics(sdk, monthAgo),
       ]);
 
-      // Get all unique tokens that have had fees collected
-      const feeEvents = await sdk.publicClient.getContractEvents({
-        address: sdk.feeDistributor.address,
-        abi: sdk.feeDistributor.abi,
-        eventName: "FeesCollected",
-        fromBlock: monthAgo,
-      });
-
-      const tokenSet = new Set<Address>();
-      for (const event of feeEvents) {
-        const token = event.args?.token as Address;
-        if (token) tokenSet.add(token);
-      }
-
-      // Get token metrics
-      const tokenMetrics: TokenMetrics[] = await Promise.all(
-        Array.from(tokenSet).map(async (token) => {
-          const [symbol, totalCollected, totalConverted] = await Promise.all([
-            sdk.publicClient.readContract({
-              address: token,
-              abi: ["function symbol() view returns (string)"] as const,
-              functionName: "symbol",
-            }),
-            // Sum up all collected fees for this token
-            feeEvents
-              .filter((e) => (e.args?.token as Address) === token)
-              .reduce((sum, e) => sum + ((e.args?.amount as bigint) || 0n), 0n),
-            // Get conversion events for this token
-            sdk.publicClient
-              .getContractEvents({
-                address: sdk.feeDistributor.address,
-                abi: sdk.feeDistributor.abi,
-                eventName: "FeesConverted",
-                args: { token: token },
-                fromBlock: monthAgo,
-              })
-              .then((events) =>
-                events.reduce(
-                  (sum, e) => sum + ((e.args?.tokenAmount as bigint) || 0n),
-                  0n
-                )
-              ),
-          ]);
-
-          // Calculate KUB value through router
-          let valueInKUB = 0n;
-          try {
-            const weth = await sdk.router.WETH();
-            const pair = await sdk.factory.getPair(token, weth);
-            if (pair) {
-              const pairContract = sdk.getPair(pair);
-              const [token0, reserves] = await Promise.all([
-                pairContract.token0(),
-                pairContract.getReserves(),
-              ]);
-              const isToken0 = token.toLowerCase() === token0.toLowerCase();
-              const tokenReserve = isToken0
-                ? reserves.reserve0
-                : reserves.reserve1;
-              const kubReserve = isToken0
-                ? reserves.reserve1
-                : reserves.reserve0;
-
-              if (tokenReserve > 0n) {
-                valueInKUB = (totalCollected * kubReserve) / tokenReserve;
-              }
-            }
-          } catch (err) {
-            console.warn(`Failed to get KUB value for token ${symbol}:`, err);
-          }
-
-          return {
-            token,
-            symbol: symbol as string,
-            totalCollected,
-            totalConverted,
-            valueInKUB,
-          };
-        })
-      );
-
-      // Calculate total distributions
-      const totalDistributed = monthlyMetrics.volume;
-      const { stakingRatio, teamRatio } =
-        await sdk.feeDistributor.getDistributionRatios();
-
-      const denominator = stakingRatio + teamRatio;
+      // Get token-specific metrics
+      const tokenMetrics = await getTokenMetrics(sdk, monthAgo);
 
       return {
-        totalDistributed: {
-          staking: (totalDistributed * stakingRatio) / denominator,
-          team: (totalDistributed * teamRatio) / denominator,
-          total: totalDistributed,
-        },
+        totalDistributed: monthlyMetrics.volume,
         daily: dailyMetrics,
         weekly: weeklyMetrics,
         monthly: monthlyMetrics,
