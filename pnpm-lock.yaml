@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@ponderfinance/dex':
-        specifier: ^1.0.5
-        version: 1.0.5
+        specifier: ^1.0.6
+        version: 1.0.6
       '@tanstack/react-query':
         specifier: ^5.62.2
         version: 5.62.7(react@19.0.0)
@@ -522,8 +522,8 @@ packages:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
-  '@ponderfinance/dex@1.0.5':
-    resolution: {integrity: sha512-z19htNAId4T0A5wNZINv1NpvrSZHpKz84FIbBxGX2emaAuZleT0V+0RiAlSqB3St/mAKcGW2iM2p/RLqxXAiow==}
+  '@ponderfinance/dex@1.0.6':
+    resolution: {integrity: sha512-UotWDfxFMUYG1b1J6wkG4tRKCbbHokWdbRsHBNARRHXdet0wA3Uv3XVmE1xvHXIwEIjO6HMFp6gnKT9Xipfonw==}
 
   '@rollup/rollup-android-arm-eabi@4.28.1':
     resolution: {integrity: sha512-2aZp8AES04KI2dy3Ss6/MDjXbwBzj+i0GqKtWXgw2/Ma6E4jJvujryO6gJAghIRVz7Vwr9Gtl/8na3nDUKpraQ==}
@@ -3014,7 +3014,7 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
-  '@ponderfinance/dex@1.0.5': {}
+  '@ponderfinance/dex@1.0.6': {}
 
   '@rollup/rollup-android-arm-eabi@4.28.1':
     optional: true
