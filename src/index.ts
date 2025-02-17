@@ -39,7 +39,10 @@ import {
   type PonderKKUBUnwrapper,
 } from "./contracts/kkubunwrapper";
 import { Staking, type PonderStaking } from "./contracts/staking";
-import { FeeDistributor, type PonderFeeDistributor } from "./contracts/feedistributor";
+import {
+  FeeDistributor,
+  type PonderFeeDistributor,
+} from "./contracts/feedistributor";
 import { PONDER_ADDRESSES } from "@/constants/addresses";
 
 interface SDKConfig {
@@ -114,14 +117,14 @@ export class PonderSDK {
       this._walletClient
     );
     this._staking = new Staking(
-        this.chainId,
-        this.publicClient,
-        this._walletClient
+      this.chainId,
+      this.publicClient,
+      this._walletClient
     );
     this._feeDistributor = new FeeDistributor(
-        this.chainId,
-        this.publicClient,
-        this._walletClient
+      this.chainId,
+      this.publicClient,
+      this._walletClient
     );
     this._pairs = new Map();
     this._launchTokens = new Map();
@@ -225,15 +228,11 @@ export class PonderSDK {
       this.publicClient,
       walletClient
     );
-    this._staking = new Staking(
-        this.chainId,
-        this.publicClient,
-        walletClient
-    );
+    this._staking = new Staking(this.chainId, this.publicClient, walletClient);
     this._feeDistributor = new FeeDistributor(
-        this.chainId,
-        this.publicClient,
-        walletClient
+      this.chainId,
+      this.publicClient,
+      walletClient
     );
 
     // Update existing instances
@@ -412,13 +411,23 @@ export {
 export { useGasEstimate, type GasEstimate } from "./hooks/trade/useGasEstimate";
 
 // Add new Staking hooks exports
-export { useStakingInfo, type StakingInfo } from "./hooks/staking/useStakingInfo";
+export {
+  useStakingInfo,
+  type StakingInfo,
+} from "./hooks/staking/useStakingInfo";
 export { useStakePonder } from "./hooks/staking/useStakePonder";
 export { useUnstakePonder } from "./hooks/staking/useUnstakePonder";
-export { useStakingStats, type StakingStats } from "./hooks/staking/useStakingStats";
+export {
+  useStakingStats,
+  type StakingStats,
+} from "./hooks/staking/useStakingStats";
+export { useClaimFees } from "./hooks/staking/useClaimFees";
 
 // Add new Fee Distributor hooks exports
-export { useFeeDistributorInfo, type FeeDistributorInfo } from "./hooks/fees/useFeeDistributorInfo";
+export {
+  useFeeDistributorInfo,
+  type FeeDistributorInfo,
+} from "./hooks/fees/useFeeDistributorInfo";
 export { useDistributeFees } from "./hooks/fees/useDistributeFees";
 export { useCollectFees } from "./hooks/fees/useCollectFees";
 export { useFeeMetrics, type FeeMetrics } from "./hooks/fees/useFeeMetrics";

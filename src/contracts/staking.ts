@@ -20,9 +20,9 @@ export class Staking {
   private readonly walletClient?: WalletClient;
 
   constructor(
-      chainId: SupportedChainId,
-      publicClient: PublicClient,
-      walletClient?: WalletClient
+    chainId: SupportedChainId,
+    publicClient: PublicClient,
+    walletClient?: WalletClient
   ) {
     this.chainId = chainId;
     this.chain = getChainFromId(chainId);
@@ -107,6 +107,15 @@ export class Staking {
     });
   }
 
+  async getPendingFees(user: Address): Promise<bigint> {
+    return this.publicClient.readContract({
+      address: this.address,
+      abi: this.abi,
+      functionName: "getPendingFees",
+      args: [user],
+    });
+  }
+
   // Write Methods
   async enter(amount: bigint, recipient: Address): Promise<Hash> {
     if (!this.walletClient?.account) throw new Error("Wallet client required");
@@ -143,6 +152,20 @@ export class Staking {
       address: this.address,
       abi: this.abi,
       functionName: "rebase",
+      account: this.walletClient.account.address,
+    });
+
+    return this.walletClient.writeContract(request as WriteContractParameters);
+  }
+
+  async claimFees(): Promise<Hash> {
+    if (!this.walletClient?.account) throw new Error("Wallet client required");
+
+    const { request } = await this.publicClient.simulateContract({
+      address: this.address,
+      abi: this.abi,
+      functionName: "claimFees",
+      args: [],
       account: this.walletClient.account.address,
     });
 
