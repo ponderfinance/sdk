@@ -234,7 +234,7 @@ export class FiveFiveFiveLauncher {
         address: PONDER_ADDRESSES[this.chainId].oracle,
         abi: ponderpriceoracleAbi,
         functionName: "consult",
-        args: [ponderPair, KKUB, this.TARGET_RAISE, Number(24 * 60 * 60)],
+        args: [ponderPair, KKUB, this.TARGET_RAISE, Number(15 * 60)]
       })) as bigint;
 
       return {
