@@ -21,13 +21,10 @@ export function usePoolInfo(
       console.log("Fetching pool info for pid:", poolId);
 
       const poolInfo = await sdk.masterChef.poolInfo(BigInt(poolId));
-      console.log("Pool info:", poolInfo);
 
       const ponderPerSecond = await sdk.masterChef.ponderPerSecond();
-      console.log("Ponder per second:", ponderPerSecond);
 
       const totalAllocPoint = await sdk.masterChef.totalAllocPoint();
-      console.log("Total alloc point:", totalAllocPoint);
 
       // Calculate rewards per day for this pool
       const poolRewardsPerSecond =

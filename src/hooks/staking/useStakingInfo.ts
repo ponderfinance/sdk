@@ -10,6 +10,8 @@ export interface StakingInfo {
   minimumFirstStake: bigint;
   userBalance: bigint;
   userShares: bigint;
+  pendingFees: bigint;
+  effectiveRate: number;
   owner: Address;
   pendingOwner: Address | undefined;
 }
@@ -29,7 +31,8 @@ export function useStakingInfo(address?: Address) {
         userShares,
         minimumFirstStake,
         owner,
-        pendingOwner
+        pendingOwner,
+        pendingFees,
       ] = await Promise.all([
         sdk.staking.totalSupply(),
         sdk.ponder.balanceOf(sdk.staking.address),
@@ -37,32 +40,43 @@ export function useStakingInfo(address?: Address) {
         sdk.staking.balanceOf(address),
         sdk.staking.minimumFirstStake(),
         sdk.staking.owner(),
-        sdk.staking.pendingOwner()
+        sdk.staking.pendingOwner(),
+        sdk.staking.getPendingFees(address)
       ]);
 
-      // Calculate exchange rate with 18 decimals precision
+      // Calculate base exchange rate
       const exchangeRate =
           totalSupply > 0n
               ? Number(totalSupply * BigInt(1e18) / ponderBalance) / 1e18
               : 1;
 
-      // Calculate user's equivalent PONDER balance
+      // Calculate user's equivalent base KOI balance
       const userBalance =
           (userShares * BigInt(Math.floor(exchangeRate * 1e18))) / BigInt(1e18);
 
-      // 24 hours rebase delay from contract
+      // Calculate effective rate including fees
+      const effectiveRate = userShares > 0n
+          ? Number((userBalance + pendingFees) * BigInt(1e18) / userShares) / 1e18
+          : exchangeRate;
+
       const REBASE_DELAY = BigInt(24 * 60 * 60);
+
 
       return {
         totalStaked: ponderBalance,
         exchangeRate,
+        effectiveRate,
         lastRebaseTime: lastRebase,
         nextRebaseTime: lastRebase + REBASE_DELAY,
         minimumFirstStake,
         userBalance,
         userShares,
+        pendingFees,
         owner,
-        pendingOwner: pendingOwner === "0x0000000000000000000000000000000000000000" ? undefined : pendingOwner
+        pendingOwner:
+          pendingOwner === "0x0000000000000000000000000000000000000000"
+            ? undefined
+            : pendingOwner,
       };
     },
     enabled: !!address && !!sdk.staking,
