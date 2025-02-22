@@ -9,6 +9,8 @@ import {
     ponderstakingAbi
 } from '@ponderfinance/dex'
 
+import bridgeAbi from './bridge'
+
 import type {
     PonderFactoryContract,
     PonderPairContract,
@@ -35,5 +37,6 @@ export {
     ponderfactoryAbi as FACTORY_ABI,
     pondermasterchefAbi as MASTERCHEF_ABI,
     ponderpairAbi as PAIR_ABI,
-    ponderstakingAbi as STAKING_ABI
+    ponderstakingAbi as STAKING_ABI,
+    bridgeAbi as BRIDGE_ABI
 }

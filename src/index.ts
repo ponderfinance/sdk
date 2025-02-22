@@ -43,7 +43,8 @@ import {
   FeeDistributor,
   type PonderFeeDistributor,
 } from "./contracts/feedistributor";
-import { PONDER_ADDRESSES } from "@/constants/addresses";
+import { BRIDGE_ADDRESSES, PONDER_ADDRESSES } from "@/constants/addresses";
+import { Bridge } from "@/contracts/bridge";
 
 interface SDKConfig {
   chainId: SupportedChainId;
@@ -67,6 +68,7 @@ export class PonderSDK {
   private _ponder: Pondertoken;
   private _staking: Staking;
   private _feeDistributor: FeeDistributor;
+  private _bridge: Bridge;
 
   constructor({ chainId, publicClient, walletClient }: SDKConfig) {
     this.chainId = chainId;
@@ -126,6 +128,12 @@ export class PonderSDK {
       this.publicClient,
       this._walletClient
     );
+    this._bridge = new Bridge(
+      this.chainId,
+      BRIDGE_ADDRESSES[chainId]?.bridge,
+      this.publicClient,
+      this._walletClient
+    );
     this._pairs = new Map();
     this._launchTokens = new Map();
   }
@@ -164,6 +172,10 @@ export class PonderSDK {
 
   get feeDistributor(): FeeDistributor {
     return this._feeDistributor;
+  }
+
+  get bridge(): Bridge {
+    return this._bridge;
   }
 
   get walletClient(): WalletClient | undefined {
@@ -234,6 +246,12 @@ export class PonderSDK {
       this.publicClient,
       walletClient
     );
+    this._bridge = new Bridge(
+      this.chainId,
+      BRIDGE_ADDRESSES[this.chainId]?.bridge,
+      this.publicClient,
+      walletClient
+    );
 
     // Update existing instances
     for (const [address, _] of this._pairs) {
@@ -300,6 +318,19 @@ export type {
   CreateLaunchParams,
 } from "./contracts/launcher";
 export type { Observation } from "./contracts/oracle";
+
+export { Bridge };
+export type { PonderBridge } from "./contracts/bridge";
+
+export {
+  DEST_TOKEN_TYPE,
+  FEE_TYPE,
+  TOKEN_STRATEGY,
+  type BridgeInfo,
+  type ChainIDAndAllowedDestTokenTypes,
+  type BridgeParams,
+  type NativeBridgeParams,
+} from "./contracts/bridge";
 
 // Context provider
 export { usePonderSDK, PonderProvider } from "./context/PonderContext";

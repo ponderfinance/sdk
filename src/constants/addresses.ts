@@ -13,6 +13,24 @@ export interface PonderAddresses {
   feeDistributor: Address;
 }
 
+import { type SupportedChainId } from "./chains";
+
+interface BridgeAddresses {
+  bridge: `0x${string}`;
+}
+
+export const BRIDGE_ADDRESSES: Record<SupportedChainId, BridgeAddresses> = {
+  1: {
+    bridge: "0x89943b2499d678fb2d382c66b7baed00b732e753" as `0x${string}`,
+  },
+  96: {
+    bridge: "0x89943b2499d678fb2d382C66b7BaeD00b732e753" as `0x${string}`,
+  },
+  25925: {
+    bridge: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+  },
+} as const;
+
 // Contract addresses for each supported chain
 export const PONDER_ADDRESSES: Record<ChainId, PonderAddresses> = {
   25925: {

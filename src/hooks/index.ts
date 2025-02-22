@@ -62,3 +62,8 @@ export { useRecentSwaps, type Swap } from "./pair/useRecentSwaps";
 // Transaction & Gas Hooks
 export { useTransaction, type TransactionStatus } from "./token/useTransaction";
 export { useGasEstimate, type GasEstimate } from "./trade/useGasEstimate";
+
+export { useBridgeInfo } from "./bridge/useBridgeInfo";
+export { useBridgeStatus } from "./bridge/useBridgeStatus";
+export { useBridgeFees } from "./bridge/useBridgeFees";
+export { useBridgeTokens, useBridgeNative } from "./bridge/useBridge";
