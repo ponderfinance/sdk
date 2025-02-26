@@ -46,29 +46,29 @@ type BurnEvent = {
 };
 
 export function useRemoveLiquidity(): UseMutationResult<
-    RemoveLiquidityResult,
-    unknown,
-    RemoveLiquidityParams,
-    unknown
+  RemoveLiquidityResult,
+  unknown,
+  RemoveLiquidityParams,
+  unknown
 > {
   const sdk = usePonderSDK();
 
   return useMutation({
     mutationFn: async ({
-                         pairAddress,
-                         liquidity,
-                         token0Min,
-                         token1Min,
-                         deadline = BigInt(Math.floor(Date.now() / 1000) + 1200), // 20 minutes from now
-                         toAddress,
-                         // ETH pair specific parameters
-                         isETHPair = false,
-                         tokenAddress,
-                         amountTokenMin,
-                         amountETHMin,
-                         // Fee-on-transfer support
-                         supportsFeeOnTransfer = false,
-                       }: RemoveLiquidityParams) => {
+      pairAddress,
+      liquidity,
+      token0Min,
+      token1Min,
+      deadline = BigInt(Math.floor(Date.now() / 1000) + 1200), // 20 minutes from now
+      toAddress,
+      // ETH pair specific parameters
+      isETHPair = false,
+      tokenAddress,
+      amountTokenMin,
+      amountETHMin,
+      // Fee-on-transfer support
+      supportsFeeOnTransfer = false,
+    }: RemoveLiquidityParams) => {
       if (!sdk.walletClient?.account) {
         throw new Error("Wallet not connected");
       }
@@ -80,73 +80,54 @@ export function useRemoveLiquidity(): UseMutationResult<
         pair.token1(),
       ]);
 
-      // Determine if it's a KKUB pair if not explicitly specified
+      // Determine the recipient address (default to connected wallet)
+      const recipient = toAddress || sdk.walletClient.account.address;
+
+      // Get KKUB address
       const kkubAddress = await sdk.router.KKUB();
-      const isKKUBPairDetected =
-          token0.toLowerCase() === kkubAddress.toLowerCase() ||
-          token1.toLowerCase() === kkubAddress.toLowerCase();
+
+      // Check if this is a KKUB pair
+      const isKKUBPair =
+        token0.toLowerCase() === kkubAddress.toLowerCase() ||
+        token1.toLowerCase() === kkubAddress.toLowerCase();
 
       // Use the explicit flag if provided, otherwise use the detected value
-      const isKKUBPairFinal = isETHPair !== undefined ? isETHPair : isKKUBPairDetected;
-
-      // Get recipient address (default to connected wallet)
-      const recipient = toAddress || sdk.walletClient.account.address;
+      const finalIsKKUBPair = isETHPair !== undefined ? isETHPair : isKKUBPair;
 
       console.log("Removing liquidity with params:", {
         pairAddress,
         token0,
         token1,
         kkubAddress,
-        isKKUBPairDetected,
-        isKKUBPairFinal,
+        isKKUBPair,
+        finalIsKKUBPair,
         liquidity: liquidity.toString(),
         token0Min: token0Min.toString(),
         token1Min: token1Min.toString(),
         supportsFeeOnTransfer,
-        tokenAddress: tokenAddress?.toString() || "not provided",
-        amountTokenMin: amountTokenMin?.toString() || "not provided",
-        amountETHMin: amountETHMin?.toString() || "not provided",
       });
 
       let hash: Hash;
 
-      if (isKKUBPairFinal) {
+      if (finalIsKKUBPair) {
         // Handle ETH/KKUB pair
         let nonKKUBToken: Address;
         let tokenMin: bigint;
         let ethMin: bigint;
 
-        // CRITICAL FIX: PROPERLY USE PROVIDED ETH PAIR PARAMETERS
+        // Determine which token is KKUB and which is not
+        const isToken0KKUB = token0.toLowerCase() === kkubAddress.toLowerCase();
+
         if (tokenAddress) {
-          // If tokenAddress is explicitly provided, use it directly
+          // If tokenAddress is explicitly provided, use it
           nonKKUBToken = tokenAddress;
-
-          // IMPORTANT: Use the explicitly provided minimums if available
-          tokenMin = amountTokenMin || BigInt(1);
-          ethMin = amountETHMin || BigInt(1);
-
-          console.log("Using explicitly provided ETH pair parameters:", {
-            nonKKUBToken,
-            tokenMin: tokenMin.toString(),
-            ethMin: ethMin.toString()
-          });
+          tokenMin = amountTokenMin || (isToken0KKUB ? token1Min : token0Min);
+          ethMin = amountETHMin || (isToken0KKUB ? token0Min : token1Min);
         } else {
-          // Otherwise determine which token is KKUB and which is not
-          if (token0.toLowerCase() === kkubAddress.toLowerCase()) {
-            nonKKUBToken = token1;
-            tokenMin = token1Min; // token1 is the non-KKUB token
-            ethMin = token0Min;   // token0 is KKUB
-          } else {
-            nonKKUBToken = token0;
-            tokenMin = token0Min; // token0 is the non-KKUB token
-            ethMin = token1Min;   // token1 is KKUB
-          }
-
-          console.log("Derived ETH pair parameters:", {
-            nonKKUBToken,
-            tokenMin: tokenMin.toString(),
-            ethMin: ethMin.toString()
-          });
+          // Otherwise determine based on token0/token1
+          nonKKUBToken = isToken0KKUB ? token1 : token0;
+          tokenMin = isToken0KKUB ? token1Min : token0Min;
+          ethMin = isToken0KKUB ? token0Min : token1Min;
         }
 
         console.log("Final ETH pair removal params:", {
@@ -158,34 +139,12 @@ export function useRemoveLiquidity(): UseMutationResult<
           supportsFeeOnTransfer,
         });
 
-        // Choose the appropriate function based on fee-on-transfer support
+        // Choose appropriate function based on fee-on-transfer support
         const functionName = supportsFeeOnTransfer
-            ? "removeLiquidityETHSupportingFeeOnTransferTokens"
-            : "removeLiquidityETH";
+          ? "removeLiquidityETHSupportingFeeOnTransferTokens"
+          : "removeLiquidityETH";
 
         try {
-          // Get gas estimate first (useful for debugging)
-          try {
-            const gasEstimate = await sdk.publicClient.estimateContractGas({
-              address: sdk.router.address,
-              abi: ROUTER_ABI,
-              functionName: functionName,
-              args: [
-                nonKKUBToken,
-                liquidity,
-                tokenMin,
-                ethMin,
-                recipient,
-                deadline,
-              ],
-              account: sdk.walletClient.account.address,
-            });
-
-            console.log(`Gas estimate: ${gasEstimate.toString()}`);
-          } catch (error) {
-            console.warn("Gas estimation failed, continuing anyway:", error);
-          }
-
           // Simulate removeLiquidity for ETH pairs
           const { request } = await sdk.publicClient.simulateContract({
             address: sdk.router.address,
@@ -204,33 +163,11 @@ export function useRemoveLiquidity(): UseMutationResult<
           });
 
           hash = await sdk.walletClient.writeContract(
-              request as WriteContractParameters
+            request as WriteContractParameters
           );
         } catch (error) {
           console.error("ETH pair removal simulation error:", error);
-
-          // Try with absolute minimal values as a fallback
-          console.log("Trying with minimal values as fallback...");
-
-          const { request } = await sdk.publicClient.simulateContract({
-            address: sdk.router.address,
-            abi: ROUTER_ABI,
-            functionName: functionName,
-            args: [
-              nonKKUBToken,
-              liquidity,
-              BigInt(1), // Minimal token min
-              BigInt(1), // Minimal ETH min
-              recipient,
-              deadline,
-            ],
-            account: sdk.walletClient.account.address,
-            chain: bitkubTestnetChain,
-          });
-
-          hash = await sdk.walletClient.writeContract(
-              request as WriteContractParameters
-          );
+          throw error; // Propagate error instead of using fallback
         }
       } else {
         // Handle regular token pair
@@ -250,37 +187,11 @@ export function useRemoveLiquidity(): UseMutationResult<
             abi: ROUTER_ABI,
             functionName: "removeLiquidity",
             args: [
-              token0, // First token as returned by pair.token0()
-              token1, // Second token as returned by pair.token1()
-              liquidity, // Amount of LP tokens to burn
-              token0Min, // Minimum amount of first token
-              token1Min, // Minimum amount of second token
-              recipient, // Recipient address
-              deadline, // Transaction deadline
-            ],
-            account: sdk.walletClient.account.address,
-            chain: bitkubTestnetChain,
-          });
-
-          hash = await sdk.walletClient.writeContract(
-              request as WriteContractParameters
-          );
-        } catch (error) {
-          console.error("Standard pair removal error:", error);
-
-          // Try with absolute minimal values as a fallback
-          console.log("Trying with minimal values as fallback...");
-
-          const { request } = await sdk.publicClient.simulateContract({
-            address: sdk.router.address,
-            abi: ROUTER_ABI,
-            functionName: "removeLiquidity",
-            args: [
               token0,
               token1,
               liquidity,
-              BigInt(1), // Minimal token0 min
-              BigInt(1), // Minimal token1 min
+              token0Min,
+              token1Min,
               recipient,
               deadline,
             ],
@@ -289,8 +200,11 @@ export function useRemoveLiquidity(): UseMutationResult<
           });
 
           hash = await sdk.walletClient.writeContract(
-              request as WriteContractParameters
+            request as WriteContractParameters
           );
+        } catch (error) {
+          console.error("Standard pair removal error:", error);
+          throw error; // Propagate error instead of using fallback
         }
       }
 
@@ -302,10 +216,10 @@ export function useRemoveLiquidity(): UseMutationResult<
 
       // Find Burn event from the pair contract
       const burnLog = receipt.logs.find(
-          (log) =>
-              log.address.toLowerCase() === pairAddress.toLowerCase() &&
-              log.topics[0] ===
-              "0xdccd412f0b1252819cb1fd330b93224ca42612892bb3f4f789976e6d81936496" // Burn event signature
+        (log) =>
+          log.address.toLowerCase() === pairAddress.toLowerCase() &&
+          log.topics[0] ===
+            "0xdccd412f0b1252819cb1fd330b93224ca42612892bb3f4f789976e6d81936496" // Burn event signature
       );
 
       let token0Amount = 0n;
@@ -346,11 +260,11 @@ export function useRemoveLiquidity(): UseMutationResult<
       if (errorMsg.includes("ExpiredDeadline")) {
         throw new Error("Transaction deadline has expired");
       } else if (
-          errorMsg.includes("InsufficientAAmount") ||
-          errorMsg.includes("InsufficientBAmount")
+        errorMsg.includes("InsufficientAAmount") ||
+        errorMsg.includes("InsufficientBAmount")
       ) {
         throw new Error(
-            "Slippage too high - try increasing your slippage tolerance"
+          "Slippage too high - try increasing your slippage tolerance"
         );
       } else if (errorMsg.includes("TransferFailed")) {
         throw new Error("Token transfer failed - check your token approvals");
