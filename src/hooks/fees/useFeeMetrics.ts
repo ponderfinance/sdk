@@ -138,7 +138,7 @@ async function getTokenMetrics(
     }
 
     // Calculate KUB values
-    const weth = await sdk.router.WETH();
+    const weth = await sdk.router.KKUB();
     const promises = Array.from(tokenMap.values()).map(async (metrics) => {
       try {
         const pair = await sdk.factory.getPair(metrics.token, weth);

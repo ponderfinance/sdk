@@ -40,7 +40,7 @@ export function useSwapCallback(params: SwapCallbackParams): {
   // Fetch WETH address
   const { data: wethAddress } = useQuery({
     queryKey: ["ponder", "router", "weth"],
-    queryFn: () => sdk.router.WETH(),
+    queryFn: () => sdk.router.KKUB(),
     enabled: !!params.route,
   });
 

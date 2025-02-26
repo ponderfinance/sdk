@@ -88,7 +88,7 @@ export function useFeeDistributorInfo(enabled = true) {
             // Calculate KUB value
             let valueInKUB: bigint | undefined;
             try {
-              const weth = await sdk.router.WETH();
+              const weth = await sdk.router.KKUB();
               const pair = await sdk.factory.getPair(token, weth);
               if (pair) {
                 const pairContract = sdk.getPair(pair);

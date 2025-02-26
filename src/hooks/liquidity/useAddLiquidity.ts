@@ -86,7 +86,7 @@ export function useAddLiquidity(): UseMutationResult<
       }
 
       // Check if we're adding liquidity with ETH/WETH
-      const wethAddress = await sdk.router.WETH();
+      const wethAddress = await sdk.router.KKUB();
       const isETHPair =
         params.tokenA.toLowerCase() === wethAddress.toLowerCase() ||
         params.tokenB.toLowerCase() === wethAddress.toLowerCase();

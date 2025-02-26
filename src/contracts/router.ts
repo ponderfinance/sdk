@@ -88,7 +88,7 @@ export class Router {
         })
     }
 
-    async WETH(): Promise<Address> {
+    async KKUB(): Promise<Address> {
         return this.publicClient.readContract({
             address: this.address,
             abi: ROUTER_ABI,

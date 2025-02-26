@@ -63,7 +63,7 @@ export function useLPInfo(
       const launchInfo = await sdk.launcher.getLaunchInfo(launchId);
 
       // Get WETH address for pair lookup
-      const wethAddress = await sdk.router.WETH();
+      const wethAddress = await sdk.router.KKUB();
 
       // Get pair address and contract
       const pairAddress = await sdk.factory.getPair(

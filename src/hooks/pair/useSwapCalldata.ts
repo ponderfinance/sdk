@@ -58,7 +58,7 @@ export function useSwapCalldata(
       }
 
       // Get WETH address
-      const weth = await sdk.router.WETH();
+      const weth = await sdk.router.KKUB();
       const isEthIn = tokenIn.toLowerCase() === weth.toLowerCase();
       const isEthOut = tokenOut.toLowerCase() === weth.toLowerCase();
 
