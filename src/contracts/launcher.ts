@@ -128,7 +128,7 @@ export class FiveFiveFiveLauncher {
     return this.publicClient.readContract({
       address: this.address,
       abi: fivefivefivelauncherAbi,
-      functionName: "owner",
+      functionName: "OWNER",
     });
   }
 
@@ -136,7 +136,7 @@ export class FiveFiveFiveLauncher {
     return this.publicClient.readContract({
       address: this.address,
       abi: fivefivefivelauncherAbi,
-      functionName: "feeCollector",
+      functionName: "FEE_COLLECTOR",
     });
   }
 
