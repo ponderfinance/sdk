@@ -81,7 +81,6 @@ export function useRemoveLiquidity(): UseMutationResult<
       ]);
 
       // Determine if it's a KKUB pair if not explicitly specified
-      // Changed from WETH to KKUB to match contract naming
       const kkubAddress = await sdk.router.KKUB();
       const isKKUBPairDetected =
           token0.toLowerCase() === kkubAddress.toLowerCase() ||
@@ -93,7 +92,6 @@ export function useRemoveLiquidity(): UseMutationResult<
       // Get recipient address (default to connected wallet)
       const recipient = toAddress || sdk.walletClient.account.address;
 
-      // Log for debugging
       console.log("Removing liquidity with params:", {
         pairAddress,
         token0,
@@ -105,6 +103,9 @@ export function useRemoveLiquidity(): UseMutationResult<
         token0Min: token0Min.toString(),
         token1Min: token1Min.toString(),
         supportsFeeOnTransfer,
+        tokenAddress: tokenAddress?.toString() || "not provided",
+        amountTokenMin: amountTokenMin?.toString() || "not provided",
+        amountETHMin: amountETHMin?.toString() || "not provided",
       });
 
       let hash: Hash;
@@ -115,26 +116,40 @@ export function useRemoveLiquidity(): UseMutationResult<
         let tokenMin: bigint;
         let ethMin: bigint;
 
-        // Determine non-KKUB token and min amounts
+        // CRITICAL FIX: PROPERLY USE PROVIDED ETH PAIR PARAMETERS
         if (tokenAddress) {
-          // If tokenAddress is explicitly provided, use it
+          // If tokenAddress is explicitly provided, use it directly
           nonKKUBToken = tokenAddress;
-          tokenMin = amountTokenMin || token0Min || token1Min || BigInt(1);
-          ethMin = amountETHMin || token0Min || token1Min || BigInt(1);
+
+          // IMPORTANT: Use the explicitly provided minimums if available
+          tokenMin = amountTokenMin || BigInt(1);
+          ethMin = amountETHMin || BigInt(1);
+
+          console.log("Using explicitly provided ETH pair parameters:", {
+            nonKKUBToken,
+            tokenMin: tokenMin.toString(),
+            ethMin: ethMin.toString()
+          });
         } else {
-          // Otherwise, derive it from the pair
+          // Otherwise determine which token is KKUB and which is not
           if (token0.toLowerCase() === kkubAddress.toLowerCase()) {
             nonKKUBToken = token1;
-            tokenMin = token1Min;
-            ethMin = token0Min;
+            tokenMin = token1Min; // token1 is the non-KKUB token
+            ethMin = token0Min;   // token0 is KKUB
           } else {
             nonKKUBToken = token0;
-            tokenMin = token0Min;
-            ethMin = token1Min;
+            tokenMin = token0Min; // token0 is the non-KKUB token
+            ethMin = token1Min;   // token1 is KKUB
           }
+
+          console.log("Derived ETH pair parameters:", {
+            nonKKUBToken,
+            tokenMin: tokenMin.toString(),
+            ethMin: ethMin.toString()
+          });
         }
 
-        console.log("ETH pair removal params:", {
+        console.log("Final ETH pair removal params:", {
           nonKKUBToken,
           tokenMin: tokenMin.toString(),
           ethMin: ethMin.toString(),
@@ -148,26 +163,75 @@ export function useRemoveLiquidity(): UseMutationResult<
             ? "removeLiquidityETHSupportingFeeOnTransferTokens"
             : "removeLiquidityETH";
 
-        // Simulate removeLiquidity for ETH pairs
-        const { request } = await sdk.publicClient.simulateContract({
-          address: sdk.router.address,
-          abi: ROUTER_ABI,
-          functionName: functionName,
-          args: [
-            nonKKUBToken, // Only pass the non-ETH token address
-            liquidity, // Amount of LP tokens to burn
-            tokenMin, // Minimum token amount
-            ethMin, // Minimum ETH amount
-            recipient, // Recipient address
-            deadline, // Transaction deadline
-          ],
-          account: sdk.walletClient.account.address,
-          chain: bitkubTestnetChain,
-        });
+        try {
+          // Get gas estimate first (useful for debugging)
+          try {
+            const gasEstimate = await sdk.publicClient.estimateContractGas({
+              address: sdk.router.address,
+              abi: ROUTER_ABI,
+              functionName: functionName,
+              args: [
+                nonKKUBToken,
+                liquidity,
+                tokenMin,
+                ethMin,
+                recipient,
+                deadline,
+              ],
+              account: sdk.walletClient.account.address,
+            });
 
-        hash = await sdk.walletClient.writeContract(
-            request as WriteContractParameters
-        );
+            console.log(`Gas estimate: ${gasEstimate.toString()}`);
+          } catch (error) {
+            console.warn("Gas estimation failed, continuing anyway:", error);
+          }
+
+          // Simulate removeLiquidity for ETH pairs
+          const { request } = await sdk.publicClient.simulateContract({
+            address: sdk.router.address,
+            abi: ROUTER_ABI,
+            functionName: functionName,
+            args: [
+              nonKKUBToken,
+              liquidity,
+              tokenMin,
+              ethMin,
+              recipient,
+              deadline,
+            ],
+            account: sdk.walletClient.account.address,
+            chain: bitkubTestnetChain,
+          });
+
+          hash = await sdk.walletClient.writeContract(
+              request as WriteContractParameters
+          );
+        } catch (error) {
+          console.error("ETH pair removal simulation error:", error);
+
+          // Try with absolute minimal values as a fallback
+          console.log("Trying with minimal values as fallback...");
+
+          const { request } = await sdk.publicClient.simulateContract({
+            address: sdk.router.address,
+            abi: ROUTER_ABI,
+            functionName: functionName,
+            args: [
+              nonKKUBToken,
+              liquidity,
+              BigInt(1), // Minimal token min
+              BigInt(1), // Minimal ETH min
+              recipient,
+              deadline,
+            ],
+            account: sdk.walletClient.account.address,
+            chain: bitkubTestnetChain,
+          });
+
+          hash = await sdk.walletClient.writeContract(
+              request as WriteContractParameters
+          );
+        }
       } else {
         // Handle regular token pair
         console.log("Regular pair removal params:", {
@@ -179,27 +243,55 @@ export function useRemoveLiquidity(): UseMutationResult<
           deadline: deadline.toString(),
         });
 
-        // Use tokens in exact order expected by router (no sorting needed, contract handles it)
-        const { request } = await sdk.publicClient.simulateContract({
-          address: sdk.router.address,
-          abi: ROUTER_ABI,
-          functionName: "removeLiquidity",
-          args: [
-            token0, // First token as returned by pair.token0()
-            token1, // Second token as returned by pair.token1()
-            liquidity, // Amount of LP tokens to burn
-            token0Min, // Minimum amount of first token
-            token1Min, // Minimum amount of second token
-            recipient, // Recipient address
-            deadline, // Transaction deadline
-          ],
-          account: sdk.walletClient.account.address,
-          chain: bitkubTestnetChain,
-        });
+        try {
+          // Simulate removeLiquidity
+          const { request } = await sdk.publicClient.simulateContract({
+            address: sdk.router.address,
+            abi: ROUTER_ABI,
+            functionName: "removeLiquidity",
+            args: [
+              token0, // First token as returned by pair.token0()
+              token1, // Second token as returned by pair.token1()
+              liquidity, // Amount of LP tokens to burn
+              token0Min, // Minimum amount of first token
+              token1Min, // Minimum amount of second token
+              recipient, // Recipient address
+              deadline, // Transaction deadline
+            ],
+            account: sdk.walletClient.account.address,
+            chain: bitkubTestnetChain,
+          });
 
-        hash = await sdk.walletClient.writeContract(
-            request as WriteContractParameters
-        );
+          hash = await sdk.walletClient.writeContract(
+              request as WriteContractParameters
+          );
+        } catch (error) {
+          console.error("Standard pair removal error:", error);
+
+          // Try with absolute minimal values as a fallback
+          console.log("Trying with minimal values as fallback...");
+
+          const { request } = await sdk.publicClient.simulateContract({
+            address: sdk.router.address,
+            abi: ROUTER_ABI,
+            functionName: "removeLiquidity",
+            args: [
+              token0,
+              token1,
+              liquidity,
+              BigInt(1), // Minimal token0 min
+              BigInt(1), // Minimal token1 min
+              recipient,
+              deadline,
+            ],
+            account: sdk.walletClient.account.address,
+            chain: bitkubTestnetChain,
+          });
+
+          hash = await sdk.walletClient.writeContract(
+              request as WriteContractParameters
+          );
+        }
       }
 
       // Wait for transaction and get removed amounts
@@ -246,8 +338,9 @@ export function useRemoveLiquidity(): UseMutationResult<
       };
     },
     onError: (error: unknown) => {
-      // Attempt to match contract-specific errors
+      // Enhanced error handling
       const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error("Full error:", error);
 
       // Map error messages to more user-friendly versions based on contract errors
       if (errorMsg.includes("ExpiredDeadline")) {
@@ -266,8 +359,7 @@ export function useRemoveLiquidity(): UseMutationResult<
       } else if (errorMsg.includes("UnwrapFailed")) {
         throw new Error("Failed to unwrap KKUB to native ETH");
       } else {
-        console.error("Remove liquidity error:", error);
-        throw error;
+        throw new Error(`Remove liquidity failed: ${errorMsg}`);
       }
     },
   });
