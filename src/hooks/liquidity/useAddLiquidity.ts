@@ -93,23 +93,21 @@ export function useAddLiquidity(): UseMutationResult<
         params.tokenA,
         params.tokenB
       );
-      if (
+
+      // If pair doesn't exist, we need to create it
+      const createPair =
         !pairAddress ||
-        pairAddress === "0x0000000000000000000000000000000000000000"
-      ) {
-        throw new Error("Pair does not exist");
-      }
+        pairAddress === "0x0000000000000000000000000000000000000000";
 
       let hash: Hash;
 
-      // IMPORTANT: Fixed UX issue - Only use addLiquidityETH for native KUB
+      // IMPORTANT: Only use addLiquidityETH for native KUB
       // Check if we're adding liquidity with native KUB (zero address)
-      // Note: NOT just any ETH/WETH pair. KKUB token itself should use regular addLiquidity
       const isNativeETHPair =
         params.tokenA.toLowerCase() === zeroAddress.toLowerCase() ||
         params.tokenB.toLowerCase() === zeroAddress.toLowerCase();
 
-      if (isNativeETHPair && wethAddress) {
+      if (isNativeETHPair) {
         // Handle native KUB pair
         console.log("Using addLiquidityETH for native KUB pair");
 
@@ -129,6 +127,16 @@ export function useAddLiquidity(): UseMutationResult<
         const amountETHMin = isTokenANative
           ? params.amountAMin
           : params.amountBMin;
+
+        console.log("addLiquidityETH params:", {
+          token,
+          amountToken: amountToken.toString(),
+          amountTokenMin: amountTokenMin.toString(),
+          amountETHMin: amountETHMin.toString(),
+          to: params.to,
+          deadline: params.deadline.toString(),
+          value: amountETH.toString(),
+        });
 
         const { request } = await sdk.publicClient.simulateContract({
           address: sdk.router.address,
@@ -155,6 +163,17 @@ export function useAddLiquidity(): UseMutationResult<
         console.log(
           "Using standard addLiquidity for token pair or KKUB token pair"
         );
+
+        console.log("addLiquidity params:", {
+          tokenA: params.tokenA,
+          tokenB: params.tokenB,
+          amountADesired: params.amountADesired.toString(),
+          amountBDesired: params.amountBDesired.toString(),
+          amountAMin: params.amountAMin.toString(),
+          amountBMin: params.amountBMin.toString(),
+          to: params.to,
+          deadline: params.deadline.toString(),
+        });
 
         const { request } = await sdk.publicClient.simulateContract({
           address: sdk.router.address,
@@ -185,10 +204,25 @@ export function useAddLiquidity(): UseMutationResult<
         confirmations: 1,
       });
 
+      // If we're creating a new pair, we need to get the pair address again
+      let finalPairAddress = pairAddress;
+      if (createPair) {
+        finalPairAddress = await sdk.factory.getPair(
+          params.tokenA,
+          params.tokenB
+        );
+        if (
+          !finalPairAddress ||
+          finalPairAddress === "0x0000000000000000000000000000000000000000"
+        ) {
+          throw new Error("Failed to create pair");
+        }
+      }
+
       // Decode Mint event
       const mintLog = receipt.logs.find(
         (log) =>
-          log.address.toLowerCase() === pairAddress.toLowerCase() &&
+          log.address.toLowerCase() === finalPairAddress.toLowerCase() &&
           log.topics[0] ===
             "0x4c209b5fc8ad50758f13e2e1088ba56a560dff690a1c6fef26394f4c03821c4f"
       );
@@ -216,7 +250,7 @@ export function useAddLiquidity(): UseMutationResult<
       // Decode Transfer event for LP tokens
       const transferLog = receipt.logs.find(
         (log) =>
-          log.address.toLowerCase() === pairAddress.toLowerCase() &&
+          log.address.toLowerCase() === finalPairAddress.toLowerCase() &&
           log.topics[0] ===
             "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" &&
           log.topics[2]?.toLowerCase() ===
