@@ -91,18 +91,27 @@ export function useAddLiquidity(): UseMutationResult<
       // Get WKUB/KKUB address for comparisons
       const wkubAddress = await sdk.router.KKUB();
 
-      // Check if this is a native KUB pair by seeing if tokenB is KKUB
-      // This is the convention we've established in the component
+      // Check if this is a native KUB pair by seeing if tokenB is KKUB AND we have a zero address
+      // We need both conditions to distinguish between native KUB and regular KKUB token pairs
+      const hasZeroAddress =
+        params.tokenA.toLowerCase() === zeroAddress.toLowerCase() ||
+        params.tokenB.toLowerCase() === zeroAddress.toLowerCase();
       const isNativeKUBPair =
-        params.tokenB.toLowerCase() === wkubAddress.toLowerCase();
+        hasZeroAddress &&
+        (params.tokenB.toLowerCase() === wkubAddress.toLowerCase() ||
+          params.tokenA.toLowerCase() === wkubAddress.toLowerCase());
 
       // First, determine the real pair address for checking existence
       let pairAddress;
       let createPair = false;
 
       if (isNativeKUBPair) {
-        // For native KUB pairs, we'd be creating a KKUB/token pair
-        pairAddress = await sdk.factory.getPair(params.tokenA, wkubAddress);
+        // For native KUB pairs, check for KKUB/token pair
+        const nonZeroToken =
+          params.tokenA.toLowerCase() === zeroAddress.toLowerCase()
+            ? params.tokenB
+            : params.tokenA;
+        pairAddress = await sdk.factory.getPair(nonZeroToken, wkubAddress);
       } else {
         // Regular token pairs
         pairAddress = await sdk.factory.getPair(params.tokenA, params.tokenB);
@@ -120,12 +129,22 @@ export function useAddLiquidity(): UseMutationResult<
         // Handle native KUB pair (using addLiquidityETH)
         console.log("Using addLiquidityETH for native KUB pair");
 
-        // The tokenA is the ERC20 token
-        const token = params.tokenA;
-        const amountToken = params.amountADesired;
-        const amountTokenMin = params.amountAMin;
-        const amountETH = params.amountBDesired;
-        const amountETHMin = params.amountBMin;
+        // Determine which token is the ERC20 token and which is native KUB
+        const isTokenANative =
+          params.tokenA.toLowerCase() === zeroAddress.toLowerCase();
+        const token = isTokenANative ? params.tokenB : params.tokenA;
+        const amountToken = isTokenANative
+          ? params.amountBDesired
+          : params.amountADesired;
+        const amountTokenMin = isTokenANative
+          ? params.amountBMin
+          : params.amountAMin;
+        const amountETH = isTokenANative
+          ? params.amountADesired
+          : params.amountBDesired;
+        const amountETHMin = isTokenANative
+          ? params.amountAMin
+          : params.amountBMin;
 
         console.log("addLiquidityETH params:", {
           token,
