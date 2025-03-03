@@ -176,6 +176,15 @@ export function useAddLiquidity(): UseMutationResult<
             value: amountETH,
           });
 
+          console.log("addLiquidityETH contract parameters:", {
+            token,
+            amountToken: amountToken.toString(),
+            amountTokenMin: amountTokenMin.toString(),
+            amountETHMin: amountETHMin.toString(),
+            deadline: params.deadline.toString(),
+            value: amountETH.toString(),
+          });
+
           hash = await sdk.walletClient.writeContract(
             request as WriteContractParameters
           );
