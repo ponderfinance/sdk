@@ -88,45 +88,44 @@ export function useAddLiquidity(): UseMutationResult<
         throw new Error("Wallet not connected");
       }
 
-      // Get pair address first
-      const pairAddress = await sdk.factory.getPair(
-        params.tokenA,
-        params.tokenB
-      );
+      // Get WKUB/KKUB address for comparisons
+      const wkubAddress = await sdk.router.KKUB();
 
-      // If pair doesn't exist, we need to create it
-      const createPair =
+      // Check if this is a native KUB pair by seeing if tokenB is KKUB
+      // This is the convention we've established in the component
+      const isNativeKUBPair =
+        params.tokenB.toLowerCase() === wkubAddress.toLowerCase();
+
+      // First, determine the real pair address for checking existence
+      let pairAddress;
+      let createPair = false;
+
+      if (isNativeKUBPair) {
+        // For native KUB pairs, we'd be creating a KKUB/token pair
+        pairAddress = await sdk.factory.getPair(params.tokenA, wkubAddress);
+      } else {
+        // Regular token pairs
+        pairAddress = await sdk.factory.getPair(params.tokenA, params.tokenB);
+      }
+
+      // Check if pair needs to be created
+      createPair =
         !pairAddress ||
         pairAddress === "0x0000000000000000000000000000000000000000";
 
       let hash: Hash;
 
-      // IMPORTANT: Only use addLiquidityETH for native KUB
-      // Check if we're adding liquidity with native KUB (zero address)
-      const isNativeETHPair =
-        params.tokenA.toLowerCase() === zeroAddress.toLowerCase() ||
-        params.tokenB.toLowerCase() === zeroAddress.toLowerCase();
-
-      if (isNativeETHPair) {
-        // Handle native KUB pair
+      // Use addLiquidityETH for native KUB pairs
+      if (isNativeKUBPair) {
+        // Handle native KUB pair (using addLiquidityETH)
         console.log("Using addLiquidityETH for native KUB pair");
 
-        // Determine which token is the non-ETH token
-        const isTokenANative =
-          params.tokenA.toLowerCase() === zeroAddress.toLowerCase();
-        const token = isTokenANative ? params.tokenB : params.tokenA;
-        const amountToken = isTokenANative
-          ? params.amountBDesired
-          : params.amountADesired;
-        const amountTokenMin = isTokenANative
-          ? params.amountBMin
-          : params.amountAMin;
-        const amountETH = isTokenANative
-          ? params.amountADesired
-          : params.amountBDesired;
-        const amountETHMin = isTokenANative
-          ? params.amountAMin
-          : params.amountBMin;
+        // The tokenA is the ERC20 token
+        const token = params.tokenA;
+        const amountToken = params.amountADesired;
+        const amountTokenMin = params.amountAMin;
+        const amountETH = params.amountBDesired;
+        const amountETHMin = params.amountBMin;
 
         console.log("addLiquidityETH params:", {
           token,
@@ -136,28 +135,51 @@ export function useAddLiquidity(): UseMutationResult<
           to: params.to,
           deadline: params.deadline.toString(),
           value: amountETH.toString(),
+          pairAddress: pairAddress || "Not created yet",
+          createPair,
         });
 
-        const { request } = await sdk.publicClient.simulateContract({
-          address: sdk.router.address,
-          abi: ROUTER_ABI,
-          functionName: "addLiquidityETH",
-          args: [
-            token,
-            amountToken,
-            amountTokenMin,
-            amountETHMin,
-            params.to,
-            params.deadline,
-          ],
-          account: sdk.walletClient.account.address,
-          chain: bitkubTestnetChain,
-          value: amountETH,
-        });
+        try {
+          const { request } = await sdk.publicClient.simulateContract({
+            address: sdk.router.address,
+            abi: ROUTER_ABI,
+            functionName: "addLiquidityETH",
+            args: [
+              token,
+              amountToken,
+              amountTokenMin,
+              amountETHMin,
+              params.to,
+              params.deadline,
+            ],
+            account: sdk.walletClient.account.address,
+            chain: bitkubTestnetChain,
+            value: amountETH,
+          });
 
-        hash = await sdk.walletClient.writeContract(
-          request as WriteContractParameters
-        );
+          hash = await sdk.walletClient.writeContract(
+            request as WriteContractParameters
+          );
+
+          // After the transaction, get the correct pair address (token/WKUB)
+          if (createPair) {
+            const newPairAddress = await sdk.factory.getPair(
+              token,
+              wkubAddress
+            );
+            if (
+              !newPairAddress ||
+              newPairAddress === "0x0000000000000000000000000000000000000000"
+            ) {
+              throw new Error("Failed to create ETH pair");
+            }
+            console.log("Created new ETH pair:", newPairAddress);
+            pairAddress = newPairAddress;
+          }
+        } catch (error) {
+          console.error("Error in addLiquidityETH:", error);
+          throw error;
+        }
       } else {
         // Handle regular token pair (including KKUB token pairs)
         console.log(
@@ -204,18 +226,26 @@ export function useAddLiquidity(): UseMutationResult<
         confirmations: 1,
       });
 
-      // If we're creating a new pair, we need to get the pair address again
+      // For pair checking after transaction
       let finalPairAddress = pairAddress;
       if (createPair) {
-        finalPairAddress = await sdk.factory.getPair(
-          params.tokenA,
-          params.tokenB
-        );
+        if (isNativeKUBPair) {
+          finalPairAddress = await sdk.factory.getPair(
+            params.tokenA,
+            wkubAddress
+          );
+        } else {
+          finalPairAddress = await sdk.factory.getPair(
+            params.tokenA,
+            params.tokenB
+          );
+        }
+
         if (
           !finalPairAddress ||
           finalPairAddress === "0x0000000000000000000000000000000000000000"
         ) {
-          throw new Error("Failed to create pair");
+          throw new Error("Failed to find or create pair");
         }
       }
 
