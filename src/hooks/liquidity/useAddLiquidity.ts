@@ -1,9 +1,14 @@
-import { useMutation, type UseMutationResult } from "@tanstack/react-query";
+import {
+  useMutation,
+  type UseMutationResult,
+  useQuery,
+} from "@tanstack/react-query";
 import {
   type Address,
   type Hash,
   decodeEventLog,
   type WriteContractParameters,
+  zeroAddress,
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { PAIR_ABI, ROUTER_ABI } from "@/abis";
@@ -67,6 +72,16 @@ export function useAddLiquidity(): UseMutationResult<
 > {
   const sdk = usePonderSDK();
 
+  // Get KKUB (WETH) address to compare
+  const { data: wethAddress } = useQuery({
+    queryKey: ["router", "KKUB"],
+    queryFn: async () => {
+      if (!sdk.router) return null;
+      return sdk.router.KKUB();
+    },
+    enabled: !!sdk.router,
+  });
+
   return useMutation({
     mutationFn: async (params: AddLiquidityParams) => {
       if (!sdk.walletClient?.account) {
@@ -85,30 +100,35 @@ export function useAddLiquidity(): UseMutationResult<
         throw new Error("Pair does not exist");
       }
 
-      // Check if we're adding liquidity with ETH/WETH
-      const wethAddress = await sdk.router.KKUB();
-      const isETHPair =
-        params.tokenA.toLowerCase() === wethAddress.toLowerCase() ||
-        params.tokenB.toLowerCase() === wethAddress.toLowerCase();
-
       let hash: Hash;
 
-      if (isETHPair) {
-        // Handle ETH pair
-        const token =
-          params.tokenA === wethAddress ? params.tokenB : params.tokenA;
-        const amountToken =
-          params.tokenA === wethAddress
-            ? params.amountBDesired
-            : params.amountADesired;
-        const amountTokenMin =
-          params.tokenA === wethAddress ? params.amountBMin : params.amountAMin;
-        const amountETH =
-          params.tokenA === wethAddress
-            ? params.amountADesired
-            : params.amountBDesired;
-        const amountETHMin =
-          params.tokenA === wethAddress ? params.amountAMin : params.amountBMin;
+      // IMPORTANT: Fixed UX issue - Only use addLiquidityETH for native KUB
+      // Check if we're adding liquidity with native KUB (zero address)
+      // Note: NOT just any ETH/WETH pair. KKUB token itself should use regular addLiquidity
+      const isNativeETHPair =
+        params.tokenA.toLowerCase() === zeroAddress.toLowerCase() ||
+        params.tokenB.toLowerCase() === zeroAddress.toLowerCase();
+
+      if (isNativeETHPair && wethAddress) {
+        // Handle native KUB pair
+        console.log("Using addLiquidityETH for native KUB pair");
+
+        // Determine which token is the non-ETH token
+        const isTokenANative =
+          params.tokenA.toLowerCase() === zeroAddress.toLowerCase();
+        const token = isTokenANative ? params.tokenB : params.tokenA;
+        const amountToken = isTokenANative
+          ? params.amountBDesired
+          : params.amountADesired;
+        const amountTokenMin = isTokenANative
+          ? params.amountBMin
+          : params.amountAMin;
+        const amountETH = isTokenANative
+          ? params.amountADesired
+          : params.amountBDesired;
+        const amountETHMin = isTokenANative
+          ? params.amountAMin
+          : params.amountBMin;
 
         const { request } = await sdk.publicClient.simulateContract({
           address: sdk.router.address,
@@ -131,7 +151,11 @@ export function useAddLiquidity(): UseMutationResult<
           request as WriteContractParameters
         );
       } else {
-        // Handle regular token pair
+        // Handle regular token pair (including KKUB token pairs)
+        console.log(
+          "Using standard addLiquidity for token pair or KKUB token pair"
+        );
+
         const { request } = await sdk.publicClient.simulateContract({
           address: sdk.router.address,
           abi: ROUTER_ABI,
