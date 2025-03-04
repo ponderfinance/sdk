@@ -7,7 +7,6 @@ import {
 import { type Address, type Hash, type WriteContractParameters } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { TOKEN_ABI } from "@/abis";
-import { bitkubTestnetChain } from "@/constants/chains";
 
 // Query interfaces
 interface TokenVesting {
@@ -205,7 +204,7 @@ export function usePonderToken(
         functionName: "burn",
         args: [amount],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       return sdk.walletClient.writeContract(request as WriteContractParameters);
@@ -223,7 +222,7 @@ export function usePonderToken(
         functionName: "setMinter",
         args: [minter],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       return sdk.walletClient.writeContract(request as WriteContractParameters);
@@ -241,7 +240,7 @@ export function usePonderToken(
         functionName: "transferOwnership",
         args: [newOwner],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       return sdk.walletClient.writeContract(request as WriteContractParameters);
@@ -259,7 +258,7 @@ export function usePonderToken(
         functionName: "mint",
         args: [to, amount],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       return sdk.walletClient.writeContract(request as WriteContractParameters);

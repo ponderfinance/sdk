@@ -1,7 +1,6 @@
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
 import { type Address, type Hash, type WriteContractParameters } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
-import { bitkubTestnetChain } from "@/constants/chains";
 import { erc20Abi } from "viem";
 
 interface SwapApprovalParams {
@@ -73,7 +72,7 @@ export function useSwapApproval(): UseMutationResult<
           functionName: "approve",
           args: [spender, 0n],
           account: sdk.walletClient.account.address,
-          chain: bitkubTestnetChain,
+          chain: sdk.walletClient.chain,
         });
 
         const resetHash = await sdk.walletClient.writeContract(
@@ -91,7 +90,7 @@ export function useSwapApproval(): UseMutationResult<
         functionName: "approve",
         args: [spender, approvalAmount],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       const hash = await sdk.walletClient.writeContract(

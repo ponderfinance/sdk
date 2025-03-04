@@ -1,6 +1,6 @@
 {
   "name": "@ponderfinance/sdk",
-  "version": "1.0.28",
+  "version": "1.0.29",
   "description": "SDK for interacting with Ponder DEX and 55555 Launcher",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

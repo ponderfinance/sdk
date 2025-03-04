@@ -7,7 +7,6 @@ import {
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { LAUNCH_TOKEN_ABI } from "@/abis";
-import { bitkubTestnetChain } from "@/constants/chains";
 
 interface ClaimTokensParams {
   tokenAddress: Address;
@@ -43,7 +42,7 @@ export function useClaimTokens(): UseMutationResult<
         functionName: "claimVestedTokens",
         args: [],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       const hash = await sdk.walletClient.writeContract(

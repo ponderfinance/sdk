@@ -7,7 +7,6 @@ import {
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { LAUNCHER_ABI, TOKEN_ABI } from "@/abis";
-import { bitkubTestnetChain } from "@/constants/chains";
 
 interface CreateLaunchParams {
   name: string;
@@ -162,7 +161,7 @@ export function useCreateLaunch(): UseMutationResult<
             functionName: "approve",
             args: [sdk.launcher.address, requirements.ponderRequired],
             account: sdk.walletClient.account.address,
-            chain: bitkubTestnetChain,
+            chain: sdk.walletClient.chain,
           });
 
         const approvalTx = await sdk.walletClient.writeContract(
@@ -185,7 +184,7 @@ export function useCreateLaunch(): UseMutationResult<
           },
         ],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       const hash = await sdk.walletClient.writeContract(

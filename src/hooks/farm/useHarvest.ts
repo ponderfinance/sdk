@@ -8,7 +8,6 @@ import {
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { MASTERCHEF_ABI } from "@/abis";
-import { bitkubTestnetChain } from "@/constants/chains";
 
 interface HarvestParams {
   poolId: number;
@@ -88,7 +87,7 @@ export function useHarvest(): UseMutationResult<
         functionName: "deposit",
         args: [BigInt(params.poolId), 0n],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       const hash = await sdk.walletClient.writeContract(

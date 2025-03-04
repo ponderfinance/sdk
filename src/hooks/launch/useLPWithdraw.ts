@@ -12,7 +12,6 @@ import {
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { LAUNCHER_ABI } from "@/abis";
-import { bitkubTestnetChain } from "@/constants/chains";
 
 interface LPWithdrawParams {
   launchId: bigint;
@@ -163,7 +162,7 @@ export function useLPWithdraw(): UseMutationResult<
         functionName: "withdrawLP",
         args: [launchId],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       // Execute withdrawal

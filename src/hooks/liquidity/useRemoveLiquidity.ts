@@ -6,7 +6,6 @@ import {
   type WriteContractParameters,
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
-import { bitkubTestnetChain } from "@/constants/chains";
 import { ROUTER_ABI, PAIR_ABI } from "@/abis";
 
 // Interface for standard token-token pair removal
@@ -159,7 +158,7 @@ export function useRemoveLiquidity(): UseMutationResult<
               deadline,
             ],
             account: sdk.walletClient.account.address,
-            chain: bitkubTestnetChain,
+            chain: sdk.walletClient.chain,
           });
 
           hash = await sdk.walletClient.writeContract(
@@ -196,7 +195,7 @@ export function useRemoveLiquidity(): UseMutationResult<
               deadline,
             ],
             account: sdk.walletClient.account.address,
-            chain: bitkubTestnetChain,
+            chain: sdk.walletClient.chain,
           });
 
           hash = await sdk.walletClient.writeContract(

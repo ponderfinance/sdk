@@ -7,7 +7,6 @@ import {
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { LAUNCHER_ABI, TOKEN_ABI } from "@/abis";
-import { bitkubTestnetChain } from "@/constants/chains";
 
 type ContributeType = "KUB" | "PONDER";
 
@@ -98,7 +97,7 @@ export function useContribute(): UseMutationResult<
               functionName: "approve",
               args: [sdk.launcher.address, amount],
               account: sdk.walletClient.account.address,
-              chain: bitkubTestnetChain,
+              chain: sdk.walletClient.chain,
             });
 
           const approvalTx = await sdk.walletClient.writeContract(
@@ -117,7 +116,7 @@ export function useContribute(): UseMutationResult<
         functionName: type === "KUB" ? "contributeKUB" : "contributePONDER",
         args: type === "KUB" ? [launchId] : [launchId, amount],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
         ...(type === "KUB" ? { value: amount } : {}),
       });
 

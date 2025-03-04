@@ -7,7 +7,6 @@ import {
 import { type Address, type Hash } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { erc20Abi } from "viem";
-import { bitkubTestnetChain } from "@/constants/chains";
 
 interface ApprovalParams {
   token: Address;
@@ -77,7 +76,7 @@ export function useTokenApproval(
           abi: erc20Abi,
           functionName: "approve",
           args: [spender, BigInt(0)],
-          chain: bitkubTestnetChain,
+          chain: sdk.walletClient.chain,
           account: sdk.walletClient.account,
         });
         await sdk.publicClient.waitForTransactionReceipt({ hash: resetHash });
@@ -89,7 +88,7 @@ export function useTokenApproval(
         abi: erc20Abi,
         functionName: "approve",
         args: [spender, amount],
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
         account: sdk.walletClient.account,
       });
 

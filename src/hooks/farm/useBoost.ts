@@ -7,7 +7,6 @@ import {
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { MASTERCHEF_ABI } from "@/abis";
-import { bitkubTestnetChain } from "@/constants/chains";
 
 interface BoostStakeParams {
   poolId: number;
@@ -52,7 +51,7 @@ export function useBoostStake(): UseMutationResult<
         functionName: "boostStake",
         args: [BigInt(params.poolId), params.amount],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       const hash = await sdk.walletClient.writeContract(
@@ -115,7 +114,7 @@ export function useBoostUnstake(): UseMutationResult<
         functionName: "boostUnstake",
         args: [BigInt(params.poolId), params.amount],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       const hash = await sdk.walletClient.writeContract(

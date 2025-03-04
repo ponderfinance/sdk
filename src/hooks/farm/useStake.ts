@@ -7,7 +7,6 @@ import {
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { MASTERCHEF_ABI } from "@/abis";
-import { bitkubTestnetChain } from "@/constants/chains";
 
 interface StakeParams {
   poolId: number;
@@ -41,7 +40,7 @@ export function useStake(): UseMutationResult<StakeResult, Error, StakeParams> {
         functionName: "deposit",
         args: [BigInt(params.poolId), params.amount],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient.chain,
       });
 
       const hash = await sdk.walletClient.writeContract(

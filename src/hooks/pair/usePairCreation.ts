@@ -11,7 +11,6 @@ import {
   type WriteContractParameters,
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
-import { bitkubTestnetChain } from "@/constants/chains";
 import { FACTORY_ABI } from "@/abis";
 
 interface PairCreationParams {
@@ -98,7 +97,7 @@ export function usePairCreation(tokens?: [Address, Address]): {
           functionName: "createPair",
           args: [token0, token1],
           account: sdk.walletClient?.account?.address,
-          chain: bitkubTestnetChain,
+          chain: sdk.walletClient?.chain,
         });
         estimatedGas = request.gas;
       } catch {
@@ -128,7 +127,7 @@ export function usePairCreation(tokens?: [Address, Address]): {
         functionName: "createPair",
         args: [token0, token1],
         account: sdk.walletClient.account.address,
-        chain: bitkubTestnetChain,
+        chain: sdk.walletClient?.chain,
       });
 
       // Execute the pair creation

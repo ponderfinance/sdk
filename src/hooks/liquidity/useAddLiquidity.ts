@@ -12,7 +12,6 @@ import {
 } from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { PAIR_ABI, ROUTER_ABI } from "@/abis";
-import { bitkubTestnetChain } from "@/constants/chains";
 
 interface AddLiquidityParams {
   tokenA: Address;
@@ -126,9 +125,6 @@ export function useAddLiquidity(): UseMutationResult<
 
       // Use addLiquidityETH for native KUB pairs
       if (isNativeKUBPair) {
-        // Handle native KUB pair (using addLiquidityETH)
-        console.log("Using addLiquidityETH for native KUB pair");
-
         // Determine which token is the ERC20 token and which is native KUB
         const isTokenANative =
           params.tokenA.toLowerCase() === zeroAddress.toLowerCase();
@@ -146,18 +142,6 @@ export function useAddLiquidity(): UseMutationResult<
           ? params.amountAMin
           : params.amountBMin;
 
-        console.log("addLiquidityETH params:", {
-          token,
-          amountToken: amountToken.toString(),
-          amountTokenMin: amountTokenMin.toString(),
-          amountETHMin: amountETHMin.toString(),
-          to: params.to,
-          deadline: params.deadline.toString(),
-          value: amountETH.toString(),
-          pairAddress: pairAddress || "Not created yet",
-          createPair,
-        });
-
         try {
           const { request } = await sdk.publicClient.simulateContract({
             address: sdk.router.address,
@@ -172,17 +156,8 @@ export function useAddLiquidity(): UseMutationResult<
               params.deadline,
             ],
             account: sdk.walletClient.account.address,
-            chain: bitkubTestnetChain,
+            chain: sdk.walletClient.chain,
             value: amountETH,
-          });
-
-          console.log("addLiquidityETH contract parameters:", {
-            token,
-            amountToken: amountToken.toString(),
-            amountTokenMin: amountTokenMin.toString(),
-            amountETHMin: amountETHMin.toString(),
-            deadline: params.deadline.toString(),
-            value: amountETH.toString(),
           });
 
           hash = await sdk.walletClient.writeContract(
@@ -201,7 +176,6 @@ export function useAddLiquidity(): UseMutationResult<
             ) {
               throw new Error("Failed to create ETH pair");
             }
-            console.log("Created new ETH pair:", newPairAddress);
             pairAddress = newPairAddress;
           }
         } catch (error) {
@@ -209,21 +183,6 @@ export function useAddLiquidity(): UseMutationResult<
           throw error;
         }
       } else {
-        // Handle regular token pair (including KKUB token pairs)
-        console.log(
-          "Using standard addLiquidity for token pair or KKUB token pair"
-        );
-
-        console.log("addLiquidity params:", {
-          tokenA: params.tokenA,
-          tokenB: params.tokenB,
-          amountADesired: params.amountADesired.toString(),
-          amountBDesired: params.amountBDesired.toString(),
-          amountAMin: params.amountAMin.toString(),
-          amountBMin: params.amountBMin.toString(),
-          to: params.to,
-          deadline: params.deadline.toString(),
-        });
 
         const { request } = await sdk.publicClient.simulateContract({
           address: sdk.router.address,
@@ -240,7 +199,7 @@ export function useAddLiquidity(): UseMutationResult<
             params.deadline,
           ],
           account: sdk.walletClient.account.address,
-          chain: bitkubTestnetChain,
+          chain: sdk.walletClient.chain,
         });
 
         hash = await sdk.walletClient.writeContract(
