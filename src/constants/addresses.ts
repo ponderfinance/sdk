@@ -44,7 +44,19 @@ export const PONDER_ADDRESSES: Record<ChainId, PonderAddresses> = {
     staking: "0x0f9b00Cc79dFAAF3818d6219246033b4951Fb584",
     feeDistributor: "0xAf7d796A6589369AB56c423a1086CB604f8b7EFD",
   },
+  96: {
+    factory: "0x20b17e92dd1866ec647acaa38fe1f7075e4b359e",
+    router: "0xd19c5cebfa9a8919cc3db2f19163089febd9604e",
+    masterChef: "0x6f2b10fa6d88a0c2013d08ef9655a07356e8d53c",
+    launcher: "0x2a610b695e21fe6560343c003b0dd4c26ef8790d",
+    oracle: "0xcf814870800a3bcac4a6b858424a9370a64c75ad",
+    kkubUnwrapper: "0xea1b8372b2ae06e905957f82969da8e8a3ba47c4",
+    ponderToken: "0xe0432224871917fb5a137f4a153a51ecf9f74f57",
+    staking: "0x6c8119d33fd43f6b254d041cd5d2675586731dd5",
+    feeDistributor: "0x37196731cdf654e0572881176cb256d99c7fdc2d",
+  },
 } as const;
+
 
 // KKUB addresses for each chain
 export const KKUB_ADDRESS: Record<ChainId, Address> = {
