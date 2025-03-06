@@ -363,6 +363,8 @@ export { useSwapApproval } from "./hooks/token/useSwapApproval";
 
 // Pair & Liquidity Hooks
 export { usePairInfo, type PairInfo } from "./hooks/pair/usePairInfo";
+export { useAllPairs, type PairSummary } from "./hooks/pair/useAllPairs";
+
 export {
   usePairExists,
   type PairExistsResult,
