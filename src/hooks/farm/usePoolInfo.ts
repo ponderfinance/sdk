@@ -18,7 +18,6 @@ export function usePoolInfo(
   return useQuery({
     queryKey: ["ponder", "farm", "pool", poolId],
     queryFn: async () => {
-      console.log("Fetching pool info for pid:", poolId);
 
       const poolInfo = await sdk.masterChef.poolInfo(BigInt(poolId));
 
@@ -36,14 +35,12 @@ export function usePoolInfo(
 
       // Get total staked value in USD
       const pair = sdk.getPair(poolInfo.lpToken);
-      console.log("LP Token:", poolInfo.lpToken);
 
       const [token0, token1, reserves] = await Promise.all([
         pair.token0(),
         pair.token1(),
         pair.getReserves(),
       ]);
-      console.log("Pair info:", { token0, token1, reserves });
 
       // This should be expanded to get actual USD value using price oracle
       const totalStakedUSD =
@@ -59,7 +56,6 @@ export function usePoolInfo(
         apr,
         rewardsPerDay,
       };
-      console.log("Final pool info:", result);
       return result;
     },
     enabled,

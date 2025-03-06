@@ -43,7 +43,11 @@ import {
   FeeDistributor,
   type PonderFeeDistributor,
 } from "./contracts/feedistributor";
-import { BRIDGE_ADDRESSES, PONDER_ADDRESSES } from "@/constants/addresses";
+import {
+  BRIDGE_ADDRESSES,
+  KKUB_ADDRESS,
+  PONDER_ADDRESSES,
+} from "@/constants/addresses";
 import { Bridge } from "@/contracts/bridge";
 
 interface SDKConfig {
@@ -285,6 +289,7 @@ export class PonderSDK {
 // Re-export everything that should be available to SDK users
 export { SUPPORTED_CHAINS, type SupportedChainId };
 
+export { KKUB_ADDRESS };
 // Contract exports
 export { Factory, type PonderFactory };
 export { Pair, type PonderPair };

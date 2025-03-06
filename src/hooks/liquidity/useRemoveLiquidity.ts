@@ -93,18 +93,6 @@ export function useRemoveLiquidity(): UseMutationResult<
       // Use the explicit flag if provided, otherwise use the detected value
       const finalIsKKUBPair = isETHPair !== undefined ? isETHPair : isKKUBPair;
 
-      console.log("Removing liquidity with params:", {
-        pairAddress,
-        token0,
-        token1,
-        kkubAddress,
-        isKKUBPair,
-        finalIsKKUBPair,
-        liquidity: liquidity.toString(),
-        token0Min: token0Min.toString(),
-        token1Min: token1Min.toString(),
-        supportsFeeOnTransfer,
-      });
 
       let hash: Hash;
 
