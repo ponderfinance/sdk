@@ -25,6 +25,7 @@ export { useAddLiquidity } from "./liquidity/useAddLiquidity";
 export { useRemoveLiquidity } from "./liquidity/useRemoveLiquidity";
 export { usePositionValue, type PositionValue } from "./pair/usePositionValue";
 export { useLPTokenBalance, type LiquidityPosition } from "./pair/useLPTokenBalance";
+export { useAllPairs, type PairSummary } from "./pair/useAllPairs";
 
 // Farm Hooks
 export { usePoolInfo, type DetailedPoolInfo } from "./farm/usePoolInfo";
