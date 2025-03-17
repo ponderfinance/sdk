@@ -1,5 +1,10 @@
 import { useMutation, type UseMutationResult } from "@tanstack/react-query";
-import { type Address, type Hash, type WriteContractParameters } from "viem";
+import {
+  type Address,
+  type Hash,
+  type WriteContractParameters,
+  ContractFunctionExecutionError,
+} from "viem";
 import { usePonderSDK } from "@/context/PonderContext";
 import { erc20Abi } from "viem";
 
@@ -19,6 +24,20 @@ interface SwapApprovalResult {
   hash: Hash;
   state: ApprovalState;
 }
+
+// Simple ABI for allowances function
+const allowancesAbi = [
+  {
+    name: "allowances",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
 
 export function useSwapApproval(): UseMutationResult<
   SwapApprovalResult,
@@ -41,13 +60,31 @@ export function useSwapApproval(): UseMutationResult<
         throw new Error("Wallet not connected");
       }
 
-      // Check current allowance
-      const currentAllowance = (await sdk.publicClient.readContract({
-        address: tokenIn,
-        abi: erc20Abi,
-        functionName: "allowance",
-        args: [sdk.walletClient.account.address, spender],
-      })) as bigint;
+      // Check current allowance with fallback to allowances function
+      let currentAllowance: bigint;
+      try {
+        // Try standard allowance first
+        currentAllowance = (await sdk.publicClient.readContract({
+          address: tokenIn,
+          abi: erc20Abi,
+          functionName: "allowance",
+          args: [sdk.walletClient.account.address, spender],
+        })) as bigint;
+      } catch (err) {
+        // If standard allowance fails, try allowances function
+        console.log("Standard allowance function failed, trying 'allowances'");
+        try {
+          currentAllowance = (await sdk.publicClient.readContract({
+            address: tokenIn,
+            abi: allowancesAbi,
+            functionName: "allowances",
+            args: [sdk.walletClient.account.address, spender],
+          })) as bigint;
+        } catch (allowancesErr) {
+          console.error("Both allowance and allowances functions failed");
+          throw err; // Re-throw original error if both fail
+        }
+      }
 
       // Determine initial state
       const state: ApprovalState = {
