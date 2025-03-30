@@ -209,6 +209,15 @@ export class FiveFiveFiveLauncher {
     };
   }
 
+  async getRemainingToRaise(launchId: bigint): Promise<[bigint, bigint]> {
+    return (await this.publicClient.readContract({
+      address: this.address,
+      abi: fivefivefivelauncherAbi,
+      functionName: "getRemainingToRaise",
+      args: [launchId],
+    })) as [bigint, bigint];
+  }
+
   async calculatePonderRequirements(): Promise<PonderMetrics> {
     const [factoryAddress, routerAddress] = await Promise.all([
       this.factory(),
