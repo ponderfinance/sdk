@@ -46,7 +46,7 @@ export { useClaimTokens } from "./launch/useClaimTokens";
 export { useLPInfo, useLPWithdraw } from "./launch/useLPWithdraw";
 export { useCreatorFees } from "./launch/useCreatorFees";
 export { usePonderToken } from "./launch/usePonderToken";
-
+export { useRemainingToRaise, type RemainingToRaise } from "./launch/useRemainingToRaise";
 
 // Oracle & Price Hooks
 export { usePriceInfo, type TokenPrice } from "./oracle/usePriceInfo";
